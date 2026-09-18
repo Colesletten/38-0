@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05060a">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="38-0 — draft a truly invincible Premier League team. Six spins, six legends, one impossible season.">
+<title>38-0 — Draft a truly invincible Premier League team</title>
+
+<!-- ============================================================
+     38-0
+     A Premier League take on the viral "82-0" team-builder.
+
+     ENGINEERING CONSTRAINTS (see SPEC.md):
+       · one self-contained file · vanilla HTML/CSS/JS · no build step
+       · no frameworks, no CDN, NO NETWORK CALLS AT RUNTIME
+         (which is why every glyph below is a system font and every
+          piece of art is inline SVG or CSS — nothing is fetched)
+
+     DESIGN LANGUAGE — "TOUCHLINE"
+       Premier League broadcast graphics x Swiss editorial sports print
+       x the mechanical honesty of an arcade cabinet.
+         · Ink surfaces, chalk type, a single volt-green accent.
+         · Numerals are always tabular and always the loudest thing
+           on screen — this is a game about a scoreline.
+         · Chalk hairlines and pitch geometry instead of drop shadows
+           wherever a divider will do.
+         · Motion is mechanical: reels detent, meters sweep, nothing
+           bounces for decoration.
+     ============================================================ -->
+
+<style>
+/* ============================================================
+   1. TOKENS
+   ============================================================ */
+:root{
+  /* Surfaces — "ink" */
+  --ink-950:#05060A; --ink-900:#08090F; --ink-850:#0B0D15;
+  --ink-800:#0F121C; --ink-750:#141826; --ink-700:#1A1F30;
+  --ink-600:#232941; --ink-500:#2E3550;
+
+  /* Type — "chalk" */
+  --chalk:#F4F6FA; --chalk-soft:#C9D0E0; --chalk-dim:#8C94A9;
+  --chalk-faint:#5D6479; --chalk-ghost:#3B4155;
+
+  /* Signal */
+  --volt:#C9FF4D; --volt-deep:#A2DC1F; --volt-ink:#0C1400;
+  --ultra:#7B6BFF; --ultra-soft:#A79BFF;
+  --flare:#FF3D6E; --amber:#FFB629; --cyan:#4FE3FF;
+
+  /* Lines */
+  --line:rgba(255,255,255,.075);
+  --line-strong:rgba(255,255,255,.145);
+  --line-faint:rgba(255,255,255,.04);
+
+  /* Radii */
+  --r-xs:4px; --r-sm:8px; --r-md:13px; --r-lg:20px; --r-xl:28px; --r-pill:999px;
+
+  /* Elevation */
+  --lift-1:0 1px 0 rgba(255,255,255,.05) inset, 0 1px 2px rgba(0,0,0,.5);
+  --lift-2:0 1px 0 rgba(255,255,255,.06) inset, 0 6px 18px -6px rgba(0,0,0,.75);
+  --lift-3:0 1px 0 rgba(255,255,255,.07) inset, 0 22px 54px -20px rgba(0,0,0,.92);
+  --glow-volt:0 0 0 1px rgba(201,255,77,.4), 0 0 34px -8px rgba(201,255,77,.55);
+
+  /* Fonts — system only. `font-stretch` is a progressive enhancement:
+     Roboto Flex / SF / Segoe UI Variable honour it, everything else
+     falls back to the same stack at normal width. */
+  --f-display:ui-sans-serif,system-ui,-apple-system,"Segoe UI Variable Display","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --f-ui:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --f-mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+
+  /* Motion */
+  --ease-out:cubic-bezier(.16,.84,.34,1);
+  --ease-spring:cubic-bezier(.2,1.25,.4,1);
+  --ease-detent:cubic-bezier(.12,.72,.18,1);
+
+  /* Layout */
+  --col:460px;                    /* the portrait column — mobile first */
+  --pad:18px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:1ms!important; animation-iteration-count:1!important;
+    transition-duration:1ms!important; scroll-behavior:auto!important;
+  }
+}
+
+/* ============================================================
+   2. BASE
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--ink-950); color:var(--chalk);
+  font-family:var(--f-ui); font-size:15px; line-height:1.45;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  -webkit-tap-highlight-color:transparent;
+  overscroll-behavior:none;
+}
+
+/* Ambient floodlights. Fixed so they never scroll with content. */
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(120% 60% at 12% -12%, rgba(123,107,255,.20), transparent 60%),
+    radial-gradient(100% 55% at 92% 4%,  rgba(201,255,77,.10), transparent 58%),
+    radial-gradient(90% 70% at 50% 118%, rgba(79,227,255,.07), transparent 62%);
+}
+/* Film grain — stops big gradients banding on cheap panels. */
+body::after{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:9999;
+  opacity:.04; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+::selection{background:var(--volt); color:var(--volt-ink);}
+:focus{outline:none;}
+:focus-visible{outline:2px solid var(--volt); outline-offset:2px; border-radius:var(--r-xs);}
+
+button,input,select{font:inherit; color:inherit;}
+button{background:none; border:none; padding:0; cursor:pointer;}
+button:disabled{cursor:not-allowed;}
+h1,h2,h3,h4,p{margin:0;}
+ul,ol{margin:0; padding:0; list-style:none;}
+svg{display:block;}
+
+*{scrollbar-width:thin; scrollbar-color:var(--ink-600) transparent;}
+*::-webkit-scrollbar{width:8px;height:8px;}
+*::-webkit-scrollbar-track{background:transparent;}
+*::-webkit-scrollbar-thumb{background:var(--ink-600); border-radius:var(--r-pill);}
+
+/* ============================================================
+   3. TYPE PRIMITIVES
+   ============================================================ */
+.display{
+  font-family:var(--f-display); font-weight:900;
+  letter-spacing:-.035em; line-height:.9; text-transform:uppercase;
+}
+@supports (font-stretch:88%){ .display{font-stretch:88%;} }
+
+.eyebrow{
+  font-family:var(--f-display); font-size:10.5px; font-weight:800;
+  letter-spacing:.18em; text-transform:uppercase; color:var(--chalk-faint);
+}
+.label{
+  font-size:10px; font-weight:700; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--chalk-dim);
+}
+.num{font-family:var(--f-mono); font-variant-numeric:tabular-nums; letter-spacing:-.02em;}
+.dim{color:var(--chalk-dim);} .faint{color:var(--chalk-faint);}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+
+/* ============================================================
+   4. SHELL — a portrait column, centred on anything wider
+   ============================================================ */
+#app{position:relative; z-index:1; min-height:100vh; min-height:100dvh;}
+.shell{
+  width:100%; max-width:var(--col); margin:0 auto;
+  min-height:100vh; min-height:100dvh;
+  display:flex; flex-direction:column;
+  background:linear-gradient(180deg,rgba(11,13,21,.86),rgba(5,6,10,.94));
+  border-inline:1px solid var(--line-faint);
+}
+@media (min-width:720px){
+  .shell{
+    max-width:var(--col); margin:22px auto; min-height:calc(100dvh - 44px);
+    border:1px solid var(--line); border-radius:var(--r-xl);
+    box-shadow:var(--lift-3); overflow:hidden;
+  }
+}
+
+.stage{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:0 var(--pad) 18px;}
+.dock{
+  padding:12px var(--pad) calc(12px + var(--safe-b));
+  border-top:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(8,9,15,.4),rgba(8,9,15,.94));
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+}
+
+/* ============================================================
+   5. BOOT / DIAGNOSTIC (milestone 1 scaffold)
+   ============================================================ */
+.boot{padding:40px var(--pad); display:flex; flex-direction:column; gap:20px;}
+.boot h1{font-size:clamp(56px,20vw,92px);}
+.boot .tag{color:var(--chalk-dim); max-width:32ch;}
+
+/* Test-harness report overlay (?test=1) */
+.testrpt{
+  position:fixed; inset:0; z-index:10000; overflow:auto;
+  background:rgba(5,6,10,.97); padding:24px 18px calc(24px + var(--safe-b));
+  font-family:var(--f-mono); font-size:12px; line-height:1.55;
+}
+.testrpt h2{font-family:var(--f-display); font-size:26px; margin-bottom:4px;}
+.testrpt .t-row{display:flex; gap:10px; padding:5px 0; border-bottom:1px solid var(--line-faint);}
+.testrpt .t-pass{color:var(--volt);} .testrpt .t-fail{color:var(--flare);}
+.testrpt .t-name{flex:1; color:var(--chalk-soft); word-break:break-word;}
+.testrpt .t-note{color:var(--chalk-faint); white-space:pre-wrap;}
+.testrpt .t-sum{margin:14px 0 18px; padding:12px 14px; border:1px solid var(--line-strong); border-radius:var(--r-md);}
+.testrpt pre{white-space:pre; overflow-x:auto; color:var(--chalk-soft); margin:10px 0 0;}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+"use strict";
+/* ============================================================================
+   38-0  ·  a Premier League team-builder
+   ----------------------------------------------------------------------------
+   Everything lives in this file, in this order:
+     1. CONFIG ............ every tuning constant, in one labelled block
+     2. PRNG .............. mulberry32 + string hashing + daily seed
+     3. DATA .............. CLUBS[club][era] -> players            (milestone 2)
+     4. SIM ............... simulateSeason(lineup)                 (milestone 3)
+     5. DRAFT ............. round/spin/skip state machine          (milestone 4)
+     6. VIEW .............. rendering + screens                    (milestone 5)
+     7. TESTS ............. runTests(), guarded behind ?test=1
+   ============================================================================ */
+
+
+/* ============================================================================
+   1. CONFIG — all tuning lives here. Nothing below should hard-code a number
+      that a designer might reasonably want to move.
+   ============================================================================ */
+const CONFIG = {
+
+  /* ---- Season shape ---- */
+  SEASON: {
+    MATCHES: 38,                  // a Premier League season
+  },
+
+  /* ---- Draft shape ----
+     FORMATION is the v1 six-slot lineup. It is deliberately a flat, ordered
+     list of slots rather than a hard-coded GK/DEF/DEF/MID/MID/FWD tuple, so
+     extending to a full XI later is: add entries here, and nothing else.
+     `role` maps a slot to the player `position` that fits it naturally.
+     `x`/`y` are pitch coordinates (0-100, y=0 is your own goal line) used by
+     the lineup diagram. */
+  FORMATION: [
+    { id:'GK',   role:'GK',  short:'GK',  name:'Goalkeeper',  x:50, y:6  },
+    { id:'DEF1', role:'DEF', short:'DEF', name:'Defender',    x:27, y:28 },
+    { id:'DEF2', role:'DEF', short:'DEF', name:'Defender',    x:73, y:28 },
+    { id:'MID1', role:'MID', short:'MID', name:'Midfielder',  x:27, y:56 },
+    { id:'MID2', role:'MID', short:'MID', name:'Midfielder',  x:73, y:56 },
+    { id:'FWD',  role:'FWD', short:'FWD', name:'Forward',     x:50, y:82 },
+  ],
+
+  DRAFT: {
+    ROUNDS: 6,                    // one pick per slot
+    CLUB_SKIPS: 1,                // re-spin the club reel, once per game
+    ERA_SKIPS: 1,                 // re-spin the era reel, once per game
+    MIN_POOL: 3,                  // a (club,era) cell needs this many players
+                                  // to be worth landing on
+    POOL_SHOWN: 8,                // max cards offered from a pool
+  },
+
+  /* ---- Eras. Exactly three. ---- */
+  ERAS: ['2000s','2010s','2020s'],
+
+  /* ---- Positional fit ----
+     What a player is worth when played out of position. Slot role -> player
+     position. Anything unlisted falls back to FIT_DEFAULT. */
+  FIT: {
+    exact: 1.00,
+    'DEF>MID': 0.86, 'MID>DEF': 0.86,   // read as "player DEF in a MID slot"
+    'MID>FWD': 0.88, 'FWD>MID': 0.88,
+    'DEF>FWD': 0.64, 'FWD>DEF': 0.64,
+    GK_OUT: 0.42,                        // a keeper played outfield
+    GK_IN:  0.30,                        // an outfielder shoved in goal
+  },
+  FIT_DEFAULT: 0.70,
+
+  /* ---- Phase aggregation ----
+     How the five raw attributes of the players in each group of slots roll up
+     into the four phase ratings the season engine actually reads. Each object
+     is a set of weights over {attack, creativity, defense, physical, gk}. */
+  PHASE: {
+    GK:    { gk:0.82, physical:0.12, defense:0.06 },
+    DEF:   { defense:0.62, physical:0.24, creativity:0.09, attack:0.05 },
+    MID:   { creativity:0.42, attack:0.23, defense:0.22, physical:0.13 },
+    FWD:   { attack:0.60, creativity:0.25, physical:0.15 },
+    // Midfielders quietly feed the attack and the defence too — a six-slot
+    // team lives or dies on its midfield.
+    MID_INTO_ATTACK:  0.26,
+    MID_INTO_DEFENCE: 0.18,
+  },
+
+  /* ---- Chemistry & balance ---- */
+  CHEM: {
+    BASE: 1.00,
+    FIT_WEIGHT: 0.34,       // chem *= (1-FIT_WEIGHT) + FIT_WEIGHT*avgFit
+    SAME_CLUB_ERA_PAIR: 0.018,   // per pair who actually played together
+    SAME_CLUB_ERA_CAP: 0.075,
+    ONE_ERA_BONUS: 0.030,   // a side plucked from a single moment in time
+    THREE_ERA_BONUS: 0.018, // ...or one legend from each, "timeless"
+    BALANCE_PENALTY: 0.0055,// per point of std-dev across the four phases
+    BALANCE_CAP: 0.11,
+    MIN: 0.62, MAX: 1.13,
+  },
+
+  /* ---- Opponent difficulty curve ----
+     38 opponents, getting harder. The last GAUNTLET_FROM matches are the
+     title run-in and are brutal by design: 38-0 has to be earned late. ---- */
+  CURVE: {
+    START: 54,              // matchday 1 opponent rating
+    END: 76,                // matchday 38 baseline before the gauntlet
+    SHAPE: 1.25,            // >1 back-loads the difficulty
+    GAUNTLET_FROM: 28,      // 0-indexed matchday where the run-in begins
+    GAUNTLET_PEAK: 13,      // extra rating added by the final match
+    GAUNTLET_SHAPE: 1.6,
+    WOBBLE: 3.2,            // deterministic per-fixture variation
+  },
+
+  /* ---- Match resolution ----
+     `edge` is (team rating x chemistry) - (opponent rating). It is pushed
+     through a logistic so that small gaps between elite squads swing results
+     far more than the same gap between mediocre ones. ---- */
+  MATCH: {
+    W_ATTACK:0.30, W_MIDFIELD:0.26, W_DEFENSE:0.28, W_GK:0.16,
+    STEEP: 0.155,           // logistic steepness on `edge`
+    DRAW_BAND: 0.30,        // share of the probability mass nearest parity
+                            // that becomes a draw
+    DRAW_DECAY: 0.055,      // how fast draws vanish as the edge grows
+    ELITE_FROM: 78,         // above this team rating the curve sharpens...
+    ELITE_GAIN: 0.055,      // ...by this much per point, making the top end
+                            // of the draft matter enormously
+  },
+
+  /* ---- Category gates ----
+     A squad with a hole in it cannot go unbeaten, however good the rest is.
+     Below `min`, a phase bleeds `slope` points of edge per point of shortfall
+     in the run-in, and hard-caps the number of wins the season can produce. */
+  GATES: [
+    { phase:'defense',  min:64, slope:0.85, capPerPoint:0.85, label:'Defence' },
+    { phase:'gk',       min:60, slope:0.70, capPerPoint:0.70, label:'Goalkeeping' },
+    { phase:'attack',   min:62, slope:0.75, capPerPoint:0.75, label:'Attack' },
+    { phase:'midfield', min:60, slope:0.60, capPerPoint:0.55, label:'Midfield' },
+  ],
+  GATE_BITE_FROM: 20,       // gates only start costing points from here on
+
+  /* ---- Verdict tiers (first match wins, so order matters) ---- */
+  VERDICTS: [
+    { wins:38, losses:0, title:'INVINCIBLE',   line:'Thirty-eight played. Thirty-eight won. This has never happened.' },
+    { wins:36, losses:0, title:'IMMORTAL',     line:'Unbeaten, and barely troubled. The Invincibles would recognise this side.' },
+    { wins:30, losses:0, title:'UNBEATEN',     line:'Not a single defeat all season. Arsenal 2003-04 says hello.' },
+    { wins:32,           title:'RECORD BREAKERS', line:'A points total that rewrites the record books.' },
+    { wins:28,           title:'CHAMPIONS',    line:'Comfortable champions. The parade is booked.' },
+    { wins:24,           title:'TITLE RACE',   line:'In it to the final day, and that is worth something.' },
+    { wins:20,           title:'EUROPE',       line:'Champions League football. Nobody is unhappy.' },
+    { wins:15,           title:'MID-TABLE',    line:'Safe by March. Forgotten by June.' },
+    { wins:10,           title:'SURVIVAL',     line:'Ugly, nervous, survived. Just.' },
+    { wins:0,            title:'RELEGATED',    line:'The drop. Somebody is getting sacked in the morning.' },
+  ],
+
+  STORAGE_KEY: '38-0.best.v1',
+};
+
+/* Derived once — the slot ids grouped by role, used all over the engine. */
+CONFIG.SLOTS_BY_ROLE = CONFIG.FORMATION.reduce((acc,s)=>{
+  (acc[s.role] ||= []).push(s.id); return acc;
+},{});
+
+
+/* ============================================================================
+   2. PRNG — deterministic, tiny, seedable.
+   mulberry32: 32-bit state, good enough for a game, identical everywhere.
+   ============================================================================ */
+
+/** Returns a function producing floats in [0,1). Same seed -> same stream. */
+function mulberry32(seed){
+  let a = seed >>> 0;
+  return function(){
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** FNV-1a style string hash -> unsigned 32-bit int. Stable across engines. */
+function hashString(str){
+  let h = 2166136261 >>> 0;
+  const s = String(str);
+  for(let i=0;i<s.length;i++){
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  // Final avalanche so that "2026-09-18" and "2026-09-19" are far apart.
+  h ^= h >>> 16; h = Math.imul(h, 2246822507) >>> 0;
+  h ^= h >>> 13; h = Math.imul(h, 3266489909) >>> 0;
+  h ^= h >>> 16;
+  return h >>> 0;
+}
+
+/** Today in UTC as YYYY-MM-DD — the daily seed key. */
+function utcDateKey(date){
+  const d = date || new Date();
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth()+1).padStart(2,'0');
+  const day = String(d.getUTCDate()).padStart(2,'0');
+  return y + '-' + m + '-' + day;
+}
+
+/** Small helpers over a PRNG function. */
+const rngInt  = (rnd, n) => Math.floor(rnd() * n);
+const rngPick = (rnd, arr) => arr[rngInt(rnd, arr.length)];
+
+/** Fisher-Yates, non-mutating. */
+function rngShuffle(rnd, arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = rngInt(rnd, i+1);
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+const clamp = (v,lo,hi) => v < lo ? lo : v > hi ? hi : v;
+
+
+/* ============================================================================
+   7. TESTS — `?test=1`. console.assert is the contract; the on-screen report
+   is a convenience. These are the correctness oracle for every milestone.
+   ============================================================================ */
+const T = { results:[], notes:[] };
+
+function check(name, condition, note){
+  const pass = !!condition;
+  console.assert(pass, 'FAIL: ' + name + (note ? ' — ' + note : ''));
+  T.results.push({ name, pass, note: note || '' });
+  return pass;
+}
+
+function testPRNG(){
+  const a = mulberry32(12345), b = mulberry32(12345), c = mulberry32(12346);
+  const sa = [a(),a(),a(),a(),a()];
+  const sb = [b(),b(),b(),b(),b()];
+  const sc = [c(),c(),c(),c(),c()];
+  check('PRNG: same seed produces an identical stream',
+    sa.every((v,i)=> v === sb[i]), sa.slice(0,2).join(', '));
+  check('PRNG: different seeds diverge',
+    sa.some((v,i)=> v !== sc[i]));
+  check('PRNG: output stays inside [0,1)',
+    sa.every(v => v >= 0 && v < 1));
+
+  // Rough uniformity — a broken PRNG usually fails this loudly.
+  const r = mulberry32(99); let sum = 0; const N = 20000;
+  for(let i=0;i<N;i++) sum += r();
+  const mean = sum / N;
+  check('PRNG: mean of 20k draws is near 0.5', Math.abs(mean - 0.5) < 0.02,
+    'mean=' + mean.toFixed(4));
+
+  check('hashString: deterministic', hashString('2026-09-18') === hashString('2026-09-18'));
+  check('hashString: consecutive dates hash far apart',
+    hashString('2026-09-18') !== hashString('2026-09-19'));
+  check('hashString: always an unsigned 32-bit int',
+    ['','a','the quick brown fox','2026-09-18'].every(s=>{
+      const h = hashString(s);
+      return Number.isInteger(h) && h >= 0 && h <= 0xFFFFFFFF;
+    }));
+
+  const d = new Date(Date.UTC(2026, 8, 18, 23, 59, 59));
+  check('utcDateKey: formats as YYYY-MM-DD in UTC',
+    utcDateKey(d) === '2026-09-18', utcDateKey(d));
+
+  check('rngShuffle: preserves every member',
+    (()=>{
+      const src = [1,2,3,4,5,6,7,8];
+      const out = rngShuffle(mulberry32(7), src);
+      return out.length === src.length && src.every(v => out.includes(v));
+    })());
+  check('rngShuffle: does not mutate its input',
+    (()=>{ const src=[1,2,3,4]; rngShuffle(mulberry32(7), src); return src.join()==='1,2,3,4'; })());
+}
+
+function runTests(){
+  T.results.length = 0; T.notes.length = 0;
+  testPRNG();
+  if(typeof testData === 'function') testData();
+  if(typeof testSim  === 'function') testSim();
+  if(typeof testDraft === 'function') testDraft();
+  if(typeof document !== 'undefined') renderTestReport();
+  const failed = T.results.filter(r=>!r.pass).length;
+  console.log('[38-0] ' + (T.results.length - failed) + '/' + T.results.length + ' checks passed.');
+  return failed === 0;
+}
+
+function renderTestReport(){
+  const failed = T.results.filter(r=>!r.pass);
+  const el = document.createElement('div');
+  el.className = 'testrpt';
+  const rows = T.results.map(r =>
+    '<div class="t-row"><span class="' + (r.pass?'t-pass':'t-fail') + '">' +
+    (r.pass?'PASS':'FAIL') + '</span><span class="t-name">' + esc(r.name) +
+    (r.note ? '<br><span class="t-note">' + esc(r.note) + '</span>' : '') +
+    '</span></div>').join('');
+  el.innerHTML =
+    '<h2 class="display">Self-test</h2>' +
+    '<div class="t-sum ' + (failed.length?'t-fail':'t-pass') + '">' +
+      (T.results.length - failed.length) + ' / ' + T.results.length +
+      ' checks passed' + (failed.length ? ' — ' + failed.length + ' FAILING' : ' — all green') +
+    '</div>' + rows +
+    (T.notes.length ? '<pre>' + esc(T.notes.join('\n')) + '</pre>' : '');
+  document.body.appendChild(el);
+}
+
+/** Minimal HTML escape — used by the report and by every bit of user-ish text. */
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => (
+    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+  ));
+}
+
+
+/* ============================================================================
+   BOOT
+   ============================================================================ */
+function boot(){
+  const params = new URLSearchParams(location.search);
+  if(params.get('test') === '1'){ runTests(); return; }
+
+  // Milestone 1 scaffold. Replaced by the real shell in milestone 4.
+  document.getElementById('app').innerHTML =
+    '<div class="shell"><div class="stage boot">' +
+      '<h1 class="display">38&#8209;0</h1>' +
+      '<p class="tag">Draft a truly invincible Premier League team.</p>' +
+      '<p class="eyebrow">Scaffold online &middot; append <code>?test=1</code> to run the harness</p>' +
+    '</div></div>';
+}
+
+if(typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', boot);
+</script>
+</body>
+</html>
