@@ -68,6 +68,12 @@ Build log for the single-file Premier League team-builder. The brief is in
   A well-drafted side is unbeaten about a third of the time and goes the full
   38-0 roughly once in nine runs.
 
+### Final pass
+- Idle and spinning share a body so the draft screen does not collapse to a void
+  while the reels run; the spin button reads as busy rather than broken.
+- Dead CSS and leftover harness scaffolding removed.
+- One `<script>`, one `<style>`, 145KB, 3225 lines.
+
 ### Design
 - **TOUCHLINE**: ink surfaces, chalk type, one volt-green accent, tabular
   numerals, mechanical motion. Mobile-first portrait column.

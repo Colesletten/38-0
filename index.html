@@ -247,6 +247,17 @@ svg{display:block;}
 .btn--ghost{ background:transparent; box-shadow:none; border-color:var(--line); color:var(--chalk-soft); }
 .btn--ghost:hover:not(:disabled){ background:rgba(255,255,255,.04); color:var(--chalk); }
 .btn--sm{ min-height:38px; font-size:11px; padding:0 14px; width:auto; }
+/* Busy, not broken: a working machine, not a dead control. */
+.btn--busy{
+  background:var(--ink-800); border-color:rgba(201,255,77,.22); color:var(--volt);
+  box-shadow:none; opacity:1;
+}
+.btn--busy:disabled{ opacity:1; }
+.btn--busy::after{
+  content:""; width:7px; height:7px; border-radius:50%; background:var(--volt);
+  animation:pulse 900ms var(--ease-in-out,ease-in-out) infinite;
+}
+@keyframes pulse{ 0%,100%{ opacity:.25; transform:scale(.8);} 50%{ opacity:1; transform:scale(1);} }
 .btn--row{ display:flex; gap:10px; }
 .btn--row .btn{ flex:1; }
 
@@ -312,7 +323,6 @@ svg{display:block;}
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
 }
 .reel-item .rera{ font-family:var(--f-display); font-weight:900; font-size:30px; letter-spacing:-.045em; }
-.reel--spinning .reel-item{ opacity:.85; }
 .reel.locked{ border-color:rgba(201,255,77,.35); box-shadow:inset 0 0 0 1px rgba(201,255,77,.12); }
 
 .reel-cap{
@@ -558,11 +568,6 @@ svg{display:block;}
 
 /* ---- Misc ---- */
 .note{ font-size:11.5px; line-height:1.55; color:var(--chalk-faint); }
-.cardwrap{
-  border:1px solid var(--line); border-radius:var(--r-lg);
-  background:linear-gradient(180deg,rgba(20,24,38,.55),rgba(10,12,20,.55));
-  padding:14px; box-shadow:var(--lift-1);
-}
 .spinmeta{ display:flex; align-items:center; gap:10px; margin-top:12px; }
 .spinmeta .crest{ box-shadow:var(--lift-2); }
 .spinmeta .smname{ font-family:var(--f-display); font-weight:900; font-size:19px; letter-spacing:-.03em; text-transform:uppercase; line-height:1; }
@@ -2318,8 +2323,6 @@ function recordBest(result){
 
 /* ---- Draft self-checks ---------------------------------------------------- */
 function testDraft(){
-  const snapshot = JSON.parse(JSON.stringify({ round: GAME.round }));   // touch, then restore below
-
   // The daily seed must produce the same opening spin every time.
   const firstOf = () => {
     newGame('daily');
@@ -2392,8 +2395,7 @@ function testDraft(){
   try{ loadBest(); recordBest({wins:1,draws:1,losses:36}); }catch(e){ storageSafe = false; }
   check('DRAFT: personal-best storage is wrapped and cannot throw', storageSafe);
 
-  void snapshot;
-  newGame('daily');
+  newGame('daily');   // leave the module in a clean state for the real game
 }
 
 /* ============================================================================
@@ -2610,13 +2612,15 @@ function viewDraft(){
       '<div class="sechead"><h2>Take one</h2><span class="rule"></span>' +
         '<span class="label">' + GAME.offered.length + ' of ' + left + '</span></div>' +
       '<div class="pool">' + GAME.offered.map((p,i) => playerCardHTML(p,i)).join('') + '</div>';
-  }else if(spinning){
-    body = '<p class="note" style="text-align:center;margin-top:26px">Spinning&hellip;</p>';
   }else{
+    // Idle and spinning share a body, so the screen does not collapse to a void
+    // for two seconds while the reels run.
     body =
       '<div class="sechead"><h2>Round ' + (GAME.round+1) + '</h2><span class="rule"></span>' +
         '<span class="label">' + (CONFIG.DRAFT.ROUNDS - GAME.round) + ' picks left</span></div>' +
-      '<p class="note">Pull the handle. The machine picks a club and an era; you pick the player.</p>' +
+      '<p class="note">' + (spinning
+        ? 'The machine is choosing where you shop.'
+        : 'Pull the handle. The machine picks a club and an era; you pick the player.') + '</p>' +
       (GAME.picks.length ? recentPicksHTML() : '');
   }
 
@@ -2624,10 +2628,11 @@ function viewDraft(){
   const dock =
     '<div class="dock">' +
       '<div class="lineup" aria-label="Your lineup">' + CONFIG.FORMATION.map(slotMiniHTML).join('') + '</div>' +
-      (picking ? '' :
-        '<button class="btn btn--primary" style="margin-top:10px" data-act="spin"' + (spinning?' disabled':'') + '>' +
-          (spinning ? 'Spinning&hellip;' : 'Spin &middot; round ' + (GAME.round+1) + ' of ' + CONFIG.DRAFT.ROUNDS) +
-        '</button>') +
+      (picking ? '' : spinning
+        ? '<button class="btn btn--busy" style="margin-top:10px" disabled>Spinning&hellip;</button>'
+        : '<button class="btn btn--primary" style="margin-top:10px" data-act="spin">' +
+            'Spin &middot; round ' + (GAME.round+1) + ' of ' + CONFIG.DRAFT.ROUNDS +
+          '</button>') +
     '</div>';
 
   return '<div class="shell">' + topbarHTML({}) +
