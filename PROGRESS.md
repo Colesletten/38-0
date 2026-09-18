@@ -1,116 +1,131 @@
 # PROGRESS — 38-0
 
-Build log for the single-file Premier League team-builder. See `SPEC.md` for the brief.
+Build log for the single-file Premier League team-builder. The brief is in
+[`SPEC.md`](SPEC.md); how to play and how it works is in [`README.md`](README.md).
 
 ## Status
 
 | Milestone | State |
 |---|---|
-| 1. Scaffold + CONFIG + seeded PRNG + PRNG tests | **done** |
+| 1. Scaffold + `CONFIG` + seeded PRNG + PRNG tests | **done** |
 | 2. Data model + club/era pools | **done** |
 | 3. `simulateSeason` + tests + tuning | **done** |
 | 4. Draft loop + slot machine + spins/skips | **done** |
-| 5. UI polish, results, share, localStorage best | not started |
-| 6. Final pass | not started |
+| 5. UI polish, results, share, localStorage best | **done** |
+| 6. Final pass | **done** |
+
+**62/62 self-checks green.** Verified in Chromium at 360×640, 390×844 and
+1440×900, with `prefers-reduced-motion`, and opened directly from `file://`.
 
 ## Done
 
-- `index.html` scaffold: self-contained, no network calls at runtime (system fonts
-  only, all art inline SVG/CSS).
-- Design language **TOUCHLINE** — ink surfaces, chalk type, one volt-green accent,
-  tabular numerals, mechanical motion. Mobile-first portrait column.
-- `CONFIG` block holding every tuning constant: formation, draft shape, eras,
-  positional-fit table, phase aggregation weights, chemistry, difficulty curve,
-  match resolution, category gates, verdict tiers.
-- `mulberry32` PRNG, FNV-1a `hashString`, `utcDateKey` for the daily seed.
-- `runTests()` behind `?test=1`, rendering an on-screen report and asserting via
-  `console.assert`. 10 checks green.
+### Engineering constraints
+- One self-contained `index.html`. No build step, no framework, no CDN.
+- **Zero runtime network calls** — audited with Playwright: loading the page and
+  playing a round produces exactly one HTTP request, the document itself. System
+  fonts only, crests are generated SVG, sound is synthesised with WebAudio, the
+  favicon is an inline data URI.
+- Works from `file://` as well as over HTTP.
+- `runTests()` behind `?test=1`, asserting via `console.assert` and rendering an
+  on-screen report.
 
-- `CLUBS[club][era]` data model: 11 clubs, 32 spinnable club/era cells, 443
-  players. Each player carries `{name, position, ratings:{attack, creativity,
-  defense, physical, gk}, era, club}`.
-- `CLUB_META` for crest colours and three-letter codes.
-- `buildPools()` stamps provenance and drops any cell thinner than
-  `CONFIG.DRAFT.MIN_POOL` so the slot machine can never land on an empty shelf.
-- 14 data self-checks including spot checks that specific players are at the
-  right club in the right decade.
-
-- `simulateSeason(lineup)` — deterministic (seeded from the lineup itself, so a
-  squad has exactly one season in it), returns `{wins, draws, losses}` plus a
-  `results[]` string and the underlying analysis.
-- `analyseLineup()` — positional fit, phase roll-up (attack / midfield / defense
-  / gk), chemistry from shared club-and-era pairs, era cohesion and a balance
-  penalty on lopsided squads.
-- Emergency keepers: an outfielder in goal is worth a floor, not a zero — bad
-  enough that the draft still wants a real keeper, not so bad that a keeper-less
-  spin ends the run.
-- Rising opponent curve with the last ten matches as a genuine run-in.
-- Category gates: a phase below its threshold bleeds edge from matchday 20 and
-  hard-caps the number of wins, surrendered from the hardest fixtures backwards.
-- 21 simulation self-checks including determinism, `W+D+L === 38` across 300
-  random plus junk lineups, monotonicity, and gate behaviour.
-
-### Tuned distribution (n=1000 each, logged by `?test=1`)
-
-| play style | median wins | 38-0 rate |
-|---|---|---|
-| random players, random slots | 8 | 0% |
-| random players, sensible slots | 22 | 0% |
-| drafted well (best available, best slot) | 36 | 11.7% |
-| pool's theoretical best XI | 38 | — |
-
-The median random-but-sensible team lands at 22 wins, inside the 18-24 target
-band. A well-drafted side is usually agonisingly close — median 36, unbeaten 32%
-of the time — and goes the full 38-0 about once in nine runs.
-
-- Draft state machine: six rounds, one pick per slot, no club/era cell drafted
-  from twice and no player drafted twice.
-- Two-reel slot machine with staggered detents. A club-skip re-spins only the
-  club reel and holds the era; an era-skip does the reverse. One of each per
-  game.
-- Daily seed from the UTC date drives every draw in order, so the same date
-  gives the same opening spin and the same offered pool. Free play reseeds from
-  the clock.
-- Procedural club crests (inline SVG, no images), synthesised reel/pick/fanfare
-  sound (WebAudio, no files), a slot-assignment sheet, and a sticky lineup strip.
-- Results screen: verdict tiers, W/D/L, points, a 38-square season grid, phase
-  meters with the gate threshold marked, chemistry readout and the drafted six.
+### Game
+- Six rounds, one pick per slot, into the v1 six-slot lineup
+  (GK / DEF / DEF / MID / MID / FWD) defined as a flat ordered list in
+  `CONFIG.FORMATION` so a full XI is an additive change.
+- Two-reel slot machine with staggered detents. One club-skip and one era-skip
+  per game: a club-skip re-spins the club and holds the era, an era-skip the
+  reverse.
+- Daily seed from the UTC date drives every draw in order, so a date always gives
+  the same opening spin and the same offered pool. Free play reseeds from the
+  clock. Reel filler is cosmetic and drawn from `Math.random`, deliberately never
+  from the seeded stream.
+- No club/era cell is drafted from twice and no player twice.
+- Results: verdict tiers, W/D/L that counts up, points, a 38-square season grid
+  with per-matchday labels, phase meters with the gate threshold marked,
+  chemistry readout, the drafted six with effectiveness figures.
 - Clipboard share with an emoji season grid and an `execCommand` fallback.
 - Personal best in `localStorage`, every access wrapped in `try/catch`.
-- 10 draft self-checks, including daily-seed reproducibility.
 
-## Stubbed
+### Simulation
+- `simulateSeason(lineup)` is fully deterministic: the stream is seeded from the
+  lineup itself, so a squad has exactly one season in it. Seeding is symmetric
+  across same-role slots — the same two centre-backs in the other order is the
+  same team.
+- Phase roll-up, positional fit, chemistry (shared club-and-era pairs, era
+  cohesion, a balance penalty on lopsided squads), a rising opponent curve with
+  a ten-match run-in, and category gates that bleed edge late and hard-cap wins.
+- Tuned against the histogram oracle logged by `?test=1`:
 
-- Everything from milestone 5 onward.
+| play style | median wins | 38-0 rate |
+|---|---:|---:|
+| random players, random slots | 8 | 0% |
+| random players, sensible slots | 22 | 0% |
+| best available, best slot | 36 | 11.7% |
+| pool's theoretical best XI | 38 | — |
 
-## Notes
+  The median random-but-sensible team lands at 22, inside the 18-24 target band.
+  A well-drafted side is unbeaten about a third of the time and goes the full
+  38-0 roughly once in nine runs.
 
-- `tools/run-tests.mjs` is a **dev-only** convenience that lifts the `<script>` out
-  of `index.html` and runs the same `runTests()` in Node, so the simulation can be
-  tuned without a browser. The game has no build step and does not need it.
+### Design
+- **TOUCHLINE**: ink surfaces, chalk type, one volt-green accent, tabular
+  numerals, mechanical motion. Mobile-first portrait column.
+- `prefers-reduced-motion` honoured; focus rings never removed; focus moves into
+  a sheet on open and returns on close; live region announces the landed cell;
+  season squares carry matchday labels.
 
-## REVIEW flags
+## Stubbed / deliberately out of scope
 
-Please audit these before publishing:
+- **Six slots, not eleven.** Per the brief. `CONFIG.FORMATION` is the only thing
+  that needs to change.
+- **No formation choice** and no substitutes.
+- **No per-match narrative** — the season resolves to a W/D/L string, not events.
+- **Sound is on by default.** It only ever fires after a tap, and the preference
+  is remembered. Say the word and I will flip the default.
+- **`tools/run-tests.mjs`** is a dev-only convenience that lifts the `<script>`
+  out of `index.html` and runs the same `runTests()` in Node. The game does not
+  need it and does not know about it.
+
+## REVIEW flags — please audit
+
+These are the pools and calls I am least certain about. All are in the `CLUBS`
+block and carry matching `// REVIEW:` or `// NOTE:` comments in the file.
 
 1. **`Man City` / `2000s`** — pre-takeover City churned squads constantly. The
-   pool is deliberately short (10) rather than padded with half-remembered squad
-   players.
-2. **`Everton` / `2020s`** — the pool I am least confident about. Relegation
-   fights, a points deduction and very heavy churn.
-3. **`Gareth Bale` in `Tottenham` / `2000s` is listed as `DEF`** — correct for
-   the era (he arrived as a left-back) but it reads oddly next to his `FWD`
-   entry in the 2010s pool. Intentional; flagging in case you would rather he
-   were `MID`.
-4. **`Leicester` has no `2000s` cell at all** — they were relegated in 2002 and
-   again in 2004 and spent the rest of the decade outside the top flight. This
-   is an intentional sparse cell, not missing data.
-5. **`Aston Villa` / `2010s` is thin (11)** — Villa were in the Championship
-   from 2016 to 2019, so only genuine top-flight Villa players are listed.
+   pool is deliberately short (10 players) rather than padded with
+   half-remembered squad men.
+2. **`Everton` / `2020s`** — the pool I am least confident about: relegation
+   fights, a points deduction, very heavy churn.
+3. **`Gareth Bale` in `Tottenham` / `2000s` is `DEF`** — correct for the era, he
+   arrived as a left-back, but it reads oddly next to his `FWD` entry in the
+   2010s pool. Intentional. Say if you would rather he were `MID`.
+4. **`Leicester` has no `2000s` cell at all** — relegated in 2002 and again in
+   2004, and outside the top flight for the rest of the decade. An intentional
+   sparse cell, not missing data. The slot machine simply never lands there.
+5. **`Aston Villa` / `2010s` is thin (11 players)** — Villa were in the
+   Championship from 2016 to 2019, so only genuine top-flight Villa players are
+   listed.
+6. **Ratings generally.** All 0-100 numbers are game ratings, my best judgment.
+   No real-world statistics are asserted anywhere. They are the most subjective
+   thing in the repo and the easiest thing for you to tune — one number per
+   player, all in one block.
 
-All 0-100 numbers are game ratings, my best judgment. No real-world statistics
-are asserted anywhere in the file.
+## Open questions for you
 
-## Open questions
-
-_None yet._
+1. **Is 11.7% the right 38-0 rate for a good draft?** It currently means a
+   player who drafts well is unbeaten about a third of the time and perfect
+   roughly once in nine runs. Easy to move: `CONFIG.CURVE.GAUNTLET_PEAK` is the
+   main dial (raise it to make the run-in harder).
+2. **Should skipping cost something?** Right now a club-skip and an era-skip are
+   free and independent. A single shared skip, or a skip that costs you a pick,
+   would make the decision sharper.
+3. **Should the daily draft be one-and-done?** It currently lets you replay the
+   same day as often as you like, which undercuts the shared-seed idea. Locking
+   it to one attempt per day would need a date check in `localStorage`.
+4. **Sorting of the offered pool.** Currently grouped by position, then by OVR.
+   Sorting purely by OVR would make the draft faster but less thoughtful.
+5. **Club list.** 11 clubs is more than the brief's ~8. Adding more is purely a
+   data edit — but every new pool is another thing to audit.
+6. **Does the "38-0" wordmark's volt block read as a hyphen or as a scoreline
+   divider?** I intended the latter. Your call.

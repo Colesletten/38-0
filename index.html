@@ -7,6 +7,13 @@
 <meta name="color-scheme" content="dark">
 <meta name="description" content="38-0 — draft a truly invincible Premier League team. Six spins, six legends, one impossible season.">
 <title>38-0 — Draft a truly invincible Premier League team</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta property="og:title" content="38-0">
+<meta property="og:description" content="Six spins. Six legends. One impossible season.">
+<meta property="og:type" content="website">
+<!-- Favicon is inline so the page still fetches nothing at runtime. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2308090F'/%3E%3Ctext x='32' y='42' text-anchor='middle' font-family='system-ui,sans-serif' font-size='27' font-weight='900' fill='%23C9FF4D'%3E38%3C/text%3E%3C/svg%3E">
 
 <!-- ============================================================
      38-0
@@ -154,6 +161,7 @@ svg{display:block;}
 .num{font-family:var(--f-mono); font-variant-numeric:tabular-nums; letter-spacing:-.02em;}
 .dim{color:var(--chalk-dim);} .faint{color:var(--chalk-faint);}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+.sheet h3{ font-family:var(--f-display); font-weight:900; font-size:22px; letter-spacing:-.025em; text-transform:uppercase; margin-bottom:8px; }
 
 /* ============================================================
    4. SHELL — a portrait column, centred on anything wider
@@ -173,6 +181,25 @@ svg{display:block;}
   .shell{
     border:1px solid var(--line); border-radius:var(--r-xl);
     box-shadow:var(--lift-3);
+  }
+}
+
+/* On a wide screen the column sits on a chalked pitch rather than a void:
+   a halfway line, a centre circle and a penalty arc, drawn in CSS. */
+.pitchmarks{ display:none; }
+@media (min-width:980px){
+  .pitchmarks{
+    display:block; position:fixed; inset:0; z-index:0; pointer-events:none;
+    opacity:.5;
+  }
+  .pitchmarks::before{                     /* halfway line */
+    content:""; position:absolute; left:0; right:0; top:50%;
+    height:1px; background:linear-gradient(90deg,transparent,var(--line),transparent);
+  }
+  .pitchmarks::after{                      /* centre circle */
+    content:""; position:absolute; left:50%; top:50%;
+    width:min(74vh,720px); aspect-ratio:1; transform:translate(-50%,-50%);
+    border:1px solid var(--line); border-radius:50%;
   }
 }
 
@@ -478,7 +505,7 @@ svg{display:block;}
   border:1px solid var(--line); border-radius:var(--r-md); overflow:hidden; background:var(--line);
 }
 .sl{ background:var(--ink-850); padding:14px 8px; text-align:center; }
-.sl b{ display:block; font-family:var(--f-mono); font-size:34px; font-weight:600; letter-spacing:-.05em; line-height:1; }
+.sl b{ display:block; font-family:var(--f-mono); font-size:34px; font-weight:600; letter-spacing:-.05em; line-height:1; font-variant-numeric:tabular-nums; }
 .sl span{ display:block; margin-top:7px; font-size:9.5px; font-weight:700; letter-spacing:.16em; color:var(--chalk-ghost); }
 .sl--w b{ color:var(--volt); } .sl--d b{ color:var(--amber); } .sl--l b{ color:var(--flare); }
 
@@ -544,6 +571,16 @@ svg{display:block;}
 .skips .btn{ flex:1; }
 .skipct{ font-family:var(--f-mono); font-size:10px; opacity:.75; }
 
+/* Short screens (a small phone in portrait, or any phone in landscape) get a
+   tighter dock so the stage keeps as much room as possible. */
+@media (max-height:720px){
+  .btn{ min-height:46px; }
+  .dock{ padding-top:10px; }
+  .hero{ padding-top:14px; }
+  .hero h1{ font-size:clamp(60px,20vw,92px); }
+  .verdict{ padding-top:14px; }
+}
+
 /* Test-harness report overlay (?test=1) */
 .testrpt{
   position:fixed; inset:0; z-index:10000; overflow:auto;
@@ -562,7 +599,14 @@ svg{display:block;}
 </head>
 <body>
 
+<div class="pitchmarks" aria-hidden="true"></div>
 <div id="app"></div>
+<noscript>
+  <div style="max-width:420px;margin:12vh auto;padding:0 22px;font-family:system-ui,sans-serif;color:#C9D0E0">
+    <h1 style="font-size:64px;font-weight:900;letter-spacing:-.05em;color:#F4F6FA;margin:0 0 12px">38&#8209;0</h1>
+    <p>This game runs entirely in your browser and needs JavaScript switched on. There is no server to fall back to &mdash; that is rather the point.</p>
+  </div>
+</noscript>
 
 <script>
 "use strict";
@@ -2150,6 +2194,7 @@ const GAME = {
   picks: [],
   skips: { club:0, era:0 },
   pending: null,        // player chosen, awaiting a slot
+  confirmQuit: false,
   justFilled: null,     // slot id to pop, once
   result: null,
 };
@@ -2171,6 +2216,7 @@ function newGame(mode){
   GAME.picks = [];
   GAME.skips = { club: CONFIG.DRAFT.CLUB_SKIPS, era: CONFIG.DRAFT.ERA_SKIPS };
   GAME.pending = null;
+  GAME.confirmQuit = false;
   GAME.justFilled = null;
   GAME.result = null;
   return GAME;
@@ -2549,7 +2595,11 @@ function viewDraft(){
     '<div class="reelbay">' +
       '<div class="reel' + (picking?' locked':'') + '" id="reel-club"><span class="reel-cap">Club</span>' + clubReel + '</div>' +
       '<div class="reel' + (picking?' locked':'') + '" id="reel-era"><span class="reel-cap">Era</span>' + eraReel + '</div>' +
-    '</div>';
+    '</div>' +
+    '<p class="sr-only" role="status" aria-live="polite">' +
+      (picking && cell ? esc(cell.club) + ', ' + esc(cell.era) + '. ' + GAME.offered.length + ' players offered.'
+       : spinning ? 'Spinning.' : 'Ready to spin round ' + (GAME.round+1) + ' of ' + CONFIG.DRAFT.ROUNDS + '.') +
+    '</p>';
 
   /* --- the pool, or an instruction --- */
   let body = '';
@@ -2583,6 +2633,7 @@ function viewDraft(){
   return '<div class="shell">' + topbarHTML({}) +
     '<div class="stage">' + reels + body + '</div>' + dock +
     (GAME.pending ? assignSheetHTML() : '') +
+    (GAME.confirmQuit ? confirmQuitHTML() : '') +
   '</div>';
 }
 
@@ -2666,6 +2717,20 @@ function recentPicksHTML(){
     }).join('') + '</div>';
 }
 
+function confirmQuitHTML(){
+  return '<div class="scrim" data-act="quit-no"></div>' +
+    '<div class="sheet" role="dialog" aria-modal="true" aria-label="Abandon this draft?">' +
+      '<div class="grab"></div>' +
+      '<h3>Abandon the draft?</h3>' +
+      '<p class="note">You are ' + GAME.picks.length + ' of ' + CONFIG.DRAFT.ROUNDS +
+        ' picks in. Walking away now throws the squad out.</p>' +
+      '<div class="btn--row" style="margin-top:16px">' +
+        '<button class="btn btn--ghost" data-act="quit-no">Keep drafting</button>' +
+        '<button class="btn" data-act="quit-yes">Abandon</button>' +
+      '</div>' +
+    '</div>';
+}
+
 /* ---- Slot assignment sheet ---- */
 function assignSheetHTML(){
   const p = GAME.pending;
@@ -2708,8 +2773,11 @@ function viewResults(){
   const pts = pointsFrom(r);
   const isBest = !best || pts > best.points;
 
+  const RESULT_WORD = { W:'Won', D:'Drawn', L:'Lost' };
   const squares = r.results.map((c,i) =>
-    '<i data-r="' + c + '" style="animation-delay:' + (200 + i*22) + 'ms"></i>').join('');
+    '<i data-r="' + c + '" style="animation-delay:' + (200 + i*22) + 'ms" ' +
+    'title="Matchday ' + (i+1) + ' &middot; ' + RESULT_WORD[c] + '" ' +
+    'aria-label="Matchday ' + (i+1) + ', ' + RESULT_WORD[c] + '"></i>').join('');
 
   const phaseRows = [
     { key:'attack',   label:'Attack' },
@@ -2751,12 +2819,13 @@ function viewResults(){
         '<p class="vline">' + esc(v.line) + '</p>' +
       '</div>' +
       '<div class="scoreline">' +
-        '<div class="sl sl--w"><b>' + r.wins + '</b><span>Won</span></div>' +
-        '<div class="sl sl--d"><b>' + r.draws + '</b><span>Drawn</span></div>' +
-        '<div class="sl sl--l"><b>' + r.losses + '</b><span>Lost</span></div>' +
+        '<div class="sl sl--w"><b data-count="' + r.wins + '">0</b><span>Won</span></div>' +
+        '<div class="sl sl--d"><b data-count="' + r.draws + '">0</b><span>Drawn</span></div>' +
+        '<div class="sl sl--l"><b data-count="' + r.losses + '">0</b><span>Lost</span></div>' +
       '</div>' +
-      '<div class="ptsrow"><span>Points</span><b>' + pts + '</b></div>' +
-      '<div class="season">' + squares + '</div>' +
+      '<div class="ptsrow"><span>Points</span><b data-count="' + pts + '">0</b></div>' +
+      '<div class="season" role="list" aria-label="Season results, matchday 1 to ' +
+        CONFIG.SEASON.MATCHES + '">' + squares + '</div>' +
       '<div class="seasonkey">' +
         '<span><i style="background:var(--volt)"></i>Won</span>' +
         '<span><i style="background:var(--amber)"></i>Drawn</span>' +
@@ -2813,7 +2882,38 @@ function render(){
     root.querySelectorAll('.mfill').forEach(el => { el.style.width = el.dataset.w + '%'; });
   });
 
+  // A scoreline should land, not appear.
+  root.querySelectorAll('[data-count]').forEach((el, i) => countUp(el, Number(el.dataset.count), i * 90));
+
+  // Move focus into a sheet when one opens, and put it back when it closes.
+  const sheet = root.querySelector('.sheet');
+  if(sheet){
+    if(!lastFocus) lastFocus = document.activeElement;
+    const first = sheet.querySelector('button:not(:disabled)');
+    if(first) first.focus();
+  }else if(lastFocus){
+    try{ lastFocus.focus(); }catch(e){}
+    lastFocus = null;
+  }
+
   GAME.justFilled = null;
+}
+
+let lastFocus = null;
+
+/** Roll a number up to its value. Instant for anyone who asked for less motion. */
+function countUp(el, to, delay){
+  if(REDUCED || to === 0){ el.textContent = String(to); return; }
+  const dur = 620;
+  const start = performance.now() + (delay || 0);
+  const step = now => {
+    const t = (now - start) / dur;
+    if(t < 0){ requestAnimationFrame(step); return; }
+    if(t >= 1){ el.textContent = String(to); return; }
+    el.textContent = String(Math.round(to * (1 - Math.pow(1 - t, 3))));
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 /* ---- The slot machine ---------------------------------------------------- */
@@ -2941,8 +3041,12 @@ function onAction(e){
     case 'home':      GAME.screen = 'title'; render(); break;
 
     case 'quit':
-      if(GAME.picks.length === 0 || confirm('Abandon this draft?')){ GAME.screen = 'title'; render(); }
+      if(GAME.picks.length === 0){ GAME.screen = 'title'; }
+      else { GAME.confirmQuit = true; }
+      render();
       break;
+    case 'quit-no':  GAME.confirmQuit = false; render(); break;
+    case 'quit-yes': GAME.confirmQuit = false; GAME.screen = 'title'; render(); break;
 
     case 'sound':
       SFX.on = !SFX.on;
@@ -2981,7 +3085,9 @@ function onAction(e){
 }
 
 function onKey(e){
-  if(e.key === 'Escape' && GAME.pending){ GAME.pending = null; render(); }
+  if(e.key === 'Escape' && (GAME.pending || GAME.confirmQuit)){
+    GAME.pending = null; GAME.confirmQuit = false; render(); return;
+  }
   if(e.key === ' ' && GAME.screen === 'draft' && GAME.phase === 'idle' && e.target === document.body){
     e.preventDefault(); doSpin(null);
   }
