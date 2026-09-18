@@ -100,6 +100,7 @@ body{
   -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
   -webkit-tap-highlight-color:transparent;
   overscroll-behavior:none;
+  overflow:hidden;              /* the app owns its own scroll region */
 }
 
 /* Ambient floodlights. Fixed so they never scroll with content. */
@@ -157,23 +158,30 @@ svg{display:block;}
 /* ============================================================
    4. SHELL — a portrait column, centred on anything wider
    ============================================================ */
-#app{position:relative; z-index:1; min-height:100vh; min-height:100dvh;}
+/* The shell is exactly one viewport tall: the stage scrolls inside it and the
+   dock stays welded to the bottom. Without a definite height here, a long
+   player pool pushes the dock off the screen. */
+#app{position:relative; z-index:1; height:100vh; height:100dvh; overflow:hidden;}
 .shell{
-  width:100%; max-width:var(--col); margin:0 auto;
-  min-height:100vh; min-height:100dvh;
-  display:flex; flex-direction:column;
+  width:100%; max-width:var(--col); margin:0 auto; height:100%;
+  display:flex; flex-direction:column; overflow:hidden;
   background:linear-gradient(180deg,rgba(11,13,21,.86),rgba(5,6,10,.94));
   border-inline:1px solid var(--line-faint);
 }
 @media (min-width:720px){
+  #app{ padding:22px 0; }
   .shell{
-    max-width:var(--col); margin:22px auto; min-height:calc(100dvh - 44px);
     border:1px solid var(--line); border-radius:var(--r-xl);
-    box-shadow:var(--lift-3); overflow:hidden;
+    box-shadow:var(--lift-3);
   }
 }
 
-.stage{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:0 var(--pad) 18px;}
+.stage{
+  flex:1 1 auto; min-height:0;          /* min-height:0 lets it actually shrink */
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+  padding:0 var(--pad) 18px;
+}
+.dock{ flex:0 0 auto; }
 .dock{
   padding:12px var(--pad) calc(12px + var(--safe-b));
   border-top:1px solid var(--line);
@@ -182,11 +190,359 @@ svg{display:block;}
 }
 
 /* ============================================================
-   5. BOOT / DIAGNOSTIC (milestone 1 scaffold)
+   5. COMPONENTS
    ============================================================ */
-.boot{padding:40px var(--pad); display:flex; flex-direction:column; gap:20px;}
-.boot h1{font-size:clamp(56px,20vw,92px);}
-.boot .tag{color:var(--chalk-dim); max-width:32ch;}
+
+/* ---- Buttons ---- */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:9px;
+  width:100%; min-height:52px; padding:0 20px;
+  border-radius:var(--r-md); border:1px solid var(--line-strong);
+  background:linear-gradient(180deg,var(--ink-700),var(--ink-800));
+  color:var(--chalk); box-shadow:var(--lift-2);
+  font-family:var(--f-display); font-weight:800; font-size:14px;
+  letter-spacing:.09em; text-transform:uppercase;
+  transition:transform var(--dur-1) var(--ease-out),
+             box-shadow var(--dur-2) var(--ease-out),
+             background var(--dur-2) var(--ease-out),
+             opacity var(--dur-2) var(--ease-out);
+}
+.btn:hover:not(:disabled){ background:linear-gradient(180deg,var(--ink-600),var(--ink-700)); }
+.btn:active:not(:disabled){ transform:translateY(1px) scale(.994); }
+.btn:disabled{ opacity:.34; box-shadow:none; }
+
+.btn--primary{
+  background:linear-gradient(180deg,var(--volt),var(--volt-deep));
+  color:var(--volt-ink); border-color:transparent;
+  box-shadow:var(--glow-volt), 0 10px 26px -12px rgba(201,255,77,.7);
+}
+.btn--primary:hover:not(:disabled){ background:linear-gradient(180deg,#D8FF74,var(--volt)); }
+.btn--ghost{ background:transparent; box-shadow:none; border-color:var(--line); color:var(--chalk-soft); }
+.btn--ghost:hover:not(:disabled){ background:rgba(255,255,255,.04); color:var(--chalk); }
+.btn--sm{ min-height:38px; font-size:11px; padding:0 14px; width:auto; }
+.btn--row{ display:flex; gap:10px; }
+.btn--row .btn{ flex:1; }
+
+/* ---- Top bar ---- */
+.topbar{
+  position:sticky; top:0; z-index:40;
+  display:flex; align-items:center; gap:12px;
+  padding:calc(12px + var(--safe-t)) var(--pad) 12px;
+  background:linear-gradient(180deg,rgba(8,9,15,.97),rgba(8,9,15,.72));
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--line);
+}
+.topbar .mark{ font-family:var(--f-display); font-weight:900; font-size:19px; letter-spacing:-.05em; }
+.topbar .mark b{ color:var(--volt); }
+.topbar .spacer{ flex:1; }
+.iconbtn{
+  width:34px; height:34px; display:grid; place-items:center;
+  border-radius:var(--r-sm); border:1px solid var(--line); color:var(--chalk-dim);
+  transition:color var(--dur-1), border-color var(--dur-1), background var(--dur-1);
+}
+.iconbtn:hover{ color:var(--chalk); border-color:var(--line-strong); background:rgba(255,255,255,.04); }
+.iconbtn[aria-pressed="true"]{ color:var(--volt); border-color:rgba(201,255,77,.4); }
+
+/* ---- Round pips ---- */
+.pips{ display:flex; gap:5px; align-items:center; }
+.pip{
+  width:22px; height:4px; border-radius:var(--r-pill); background:var(--ink-600);
+  transition:background var(--dur-2) var(--ease-out), box-shadow var(--dur-2);
+}
+.pip.done{ background:var(--volt); }
+.pip.live{ background:var(--chalk); box-shadow:0 0 10px -1px rgba(244,246,250,.7); }
+
+/* ---- Crest — procedural, no images ---- */
+.crest{ flex:none; border-radius:5px; overflow:hidden; box-shadow:var(--lift-1); }
+
+/* ---- Slot machine ---- */
+.reelbay{
+  position:relative; display:grid; grid-template-columns:1.35fr 1fr; gap:10px;
+  padding:14px; margin-top:14px;
+  border:1px solid var(--line); border-radius:var(--r-lg);
+  background:
+    linear-gradient(180deg,rgba(26,31,48,.55),rgba(10,12,20,.75));
+  box-shadow:var(--lift-2);
+}
+.reel{
+  position:relative; height:104px; overflow:hidden; border-radius:var(--r-md);
+  background:var(--ink-900); border:1px solid var(--line);
+  box-shadow:inset 0 10px 18px -12px #000, inset 0 -10px 18px -12px #000;
+}
+.reel::before,.reel::after{
+  content:""; position:absolute; left:0; right:0; height:30px; z-index:2; pointer-events:none;
+}
+.reel::before{ top:0;    background:linear-gradient(180deg,var(--ink-900),transparent); }
+.reel::after { bottom:0; background:linear-gradient(0deg,  var(--ink-900),transparent); }
+.reel-track{ will-change:transform; }
+.reel-item{
+  height:104px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:7px; padding:0 8px; text-align:center;
+}
+.reel-item .rname{
+  font-family:var(--f-display); font-weight:800; font-size:14px;
+  letter-spacing:-.01em; text-transform:uppercase; line-height:1;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
+}
+.reel-item .rera{ font-family:var(--f-display); font-weight:900; font-size:30px; letter-spacing:-.045em; }
+.reel--spinning .reel-item{ opacity:.85; }
+.reel.locked{ border-color:rgba(201,255,77,.35); box-shadow:inset 0 0 0 1px rgba(201,255,77,.12); }
+
+.reel-cap{
+  position:absolute; top:8px; left:10px; z-index:3;
+  font-size:9px; font-weight:700; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--chalk-ghost);
+}
+
+/* ---- Section heads ---- */
+.sechead{ display:flex; align-items:baseline; gap:10px; margin:22px 0 10px; }
+.sechead h2{ font-family:var(--f-display); font-weight:900; font-size:17px; letter-spacing:-.02em; text-transform:uppercase; }
+.sechead .rule{ flex:1; height:1px; background:linear-gradient(90deg,var(--line-strong),transparent); }
+
+/* ---- Player cards ---- */
+.pool{ display:flex; flex-direction:column; gap:8px; }
+.pcard{
+  position:relative; display:flex; align-items:center; gap:12px;
+  width:100%; padding:11px 13px 11px 15px; text-align:left;
+  border:1px solid var(--line); border-radius:var(--r-md);
+  background:linear-gradient(180deg,var(--ink-800),var(--ink-850));
+  box-shadow:var(--lift-1);
+  transition:transform var(--dur-1) var(--ease-out), border-color var(--dur-2),
+             background var(--dur-2), box-shadow var(--dur-2);
+  animation:cardIn var(--dur-3) var(--ease-out) backwards;
+}
+@keyframes cardIn{ from{ opacity:0; transform:translateY(9px); } to{ opacity:1; transform:none; } }
+.pcard::before{
+  content:""; position:absolute; left:0; top:9px; bottom:9px; width:3px;
+  border-radius:0 3px 3px 0; background:var(--accent,var(--ink-500));
+}
+.pcard:hover{ border-color:var(--line-strong); background:linear-gradient(180deg,var(--ink-750),var(--ink-800)); }
+.pcard:active{ transform:scale(.99); }
+.pcard.is-sel{ border-color:var(--volt); box-shadow:var(--glow-volt); }
+.pcard .pmain{ flex:1; min-width:0; }
+.pcard .pname{
+  font-family:var(--f-display); font-weight:800; font-size:15.5px;
+  letter-spacing:-.02em; line-height:1.12;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.pcard .pmeta{ display:flex; align-items:center; gap:7px; margin-top:4px; }
+.ovr{
+  flex:none; width:46px; text-align:center;
+  font-family:var(--f-mono); font-variant-numeric:tabular-nums;
+  font-size:21px; font-weight:600; letter-spacing:-.04em; line-height:1;
+  color:var(--chalk);
+}
+.ovr small{ display:block; font-family:var(--f-ui); font-size:8.5px; font-weight:700;
+  letter-spacing:.14em; color:var(--chalk-ghost); margin-top:3px; }
+
+.posbadge{
+  flex:none; font-size:9.5px; font-weight:800; letter-spacing:.1em;
+  padding:3px 6px; border-radius:var(--r-xs); background:var(--ink-600); color:var(--chalk-soft);
+}
+.posbadge[data-p="GK"] { background:rgba(255,182,41,.16);  color:#FFD27A; }
+.posbadge[data-p="DEF"]{ background:rgba(79,227,255,.14);  color:#9FEEFF; }
+.posbadge[data-p="MID"]{ background:rgba(123,107,255,.18); color:#BDB4FF; }
+.posbadge[data-p="FWD"]{ background:rgba(255,61,110,.15);  color:#FF9DB8; }
+
+.fithint{ font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
+.fithint.ok{ color:var(--volt); } .fithint.mid{ color:var(--chalk-dim); }
+.fithint.warn{ color:var(--amber); } .fithint.bad{ color:var(--flare); }
+
+/* five micro attribute bars */
+.attrs{ display:flex; gap:3px; margin-top:8px; }
+.attr{ flex:1; }
+.attr i{
+  display:block; height:3px; border-radius:2px;
+  background:var(--ink-600); position:relative; overflow:hidden;
+}
+.attr i::after{
+  content:""; position:absolute; inset:0 auto 0 0; width:var(--v,0%);
+  background:var(--attrc,var(--chalk-dim)); border-radius:2px;
+}
+.attr span{ display:block; font-size:7.5px; letter-spacing:.1em; color:var(--chalk-ghost); margin-top:3px; text-align:center; }
+
+/* ---- Lineup strip (sticky mini-pitch) ---- */
+.lineup{
+  display:flex; gap:6px; align-items:stretch;
+}
+.slotmini{
+  flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:5px;
+  padding:8px 3px 7px; border-radius:var(--r-sm);
+  border:1px dashed var(--line-strong); background:rgba(255,255,255,.015);
+  transition:border-color var(--dur-2), background var(--dur-2), transform var(--dur-2) var(--ease-spring);
+}
+.slotmini.filled{ border-style:solid; border-color:var(--line-strong); background:var(--ink-800); }
+.slotmini.just{ animation:pop var(--dur-4) var(--ease-spring); }
+@keyframes pop{ 0%{transform:scale(.82);} 60%{transform:scale(1.05);} 100%{transform:scale(1);} }
+.slotmini .sm-pos{ font-size:8.5px; font-weight:800; letter-spacing:.1em; color:var(--chalk-ghost); }
+.slotmini.filled .sm-pos{ color:var(--chalk-faint); }
+.slotmini .sm-ini{
+  font-family:var(--f-display); font-weight:900; font-size:12px; letter-spacing:-.02em;
+  color:var(--chalk); line-height:1;
+}
+.slotmini .sm-dot{ width:16px; height:16px; border-radius:50%; border:2px solid var(--ink-600); }
+
+/* ---- Bottom sheet ---- */
+.scrim{
+  position:fixed; inset:0; z-index:60; background:rgba(3,4,8,.72);
+  backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
+  animation:fade var(--dur-2) var(--ease-out);
+}
+@keyframes fade{ from{opacity:0;} to{opacity:1;} }
+.sheet{
+  position:fixed; z-index:61; left:50%; transform:translateX(-50%);
+  bottom:0; width:100%; max-width:var(--col);
+  border-radius:var(--r-xl) var(--r-xl) 0 0;
+  border:1px solid var(--line-strong); border-bottom:none;
+  background:linear-gradient(180deg,var(--ink-800),var(--ink-900));
+  box-shadow:var(--lift-3);
+  padding:10px var(--pad) calc(16px + var(--safe-b));
+  animation:sheetIn var(--dur-3) var(--ease-out);
+  max-height:88dvh; overflow-y:auto;
+}
+@keyframes sheetIn{ from{ transform:translate(-50%,16px); opacity:0; } to{ transform:translate(-50%,0); opacity:1; } }
+.sheet .grab{ width:38px; height:4px; border-radius:var(--r-pill); background:var(--ink-500); margin:2px auto 14px; }
+
+/* slot picker */
+.slotpick{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0 16px; }
+.spick{
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  padding:13px 6px; border-radius:var(--r-md);
+  border:1px solid var(--line); background:var(--ink-800); color:var(--chalk-soft);
+  transition:border-color var(--dur-2), background var(--dur-2), transform var(--dur-1), color var(--dur-2);
+}
+.spick:hover:not(:disabled){ border-color:var(--line-strong); background:var(--ink-750); color:var(--chalk); }
+.spick:active:not(:disabled){ transform:scale(.97); }
+.spick:disabled{ opacity:.3; }
+.spick.natural{ border-color:rgba(201,255,77,.42); }
+.spick .sp-role{ font-family:var(--f-display); font-weight:900; font-size:15px; letter-spacing:-.01em; }
+.spick .sp-fit{ font-size:9.5px; font-weight:700; letter-spacing:.08em; color:var(--chalk-ghost); }
+.spick .sp-fit.ok{ color:var(--volt); } .spick .sp-fit.mid{ color:var(--chalk-dim); }
+.spick .sp-fit.warn{ color:var(--amber); } .spick .sp-fit.bad{ color:var(--flare); }
+.spick.taken .sp-fit{ color:var(--chalk-ghost); }
+
+/* ---- Toast ---- */
+.toast{
+  position:fixed; left:50%; bottom:calc(20px + var(--safe-b)); transform:translateX(-50%);
+  z-index:80; padding:11px 16px; border-radius:var(--r-pill);
+  background:var(--ink-700); border:1px solid var(--line-strong);
+  box-shadow:var(--lift-3); font-size:12.5px; font-weight:600; color:var(--chalk);
+  animation:toastIn var(--dur-3) var(--ease-spring);
+  max-width:calc(var(--col) - 32px);
+}
+@keyframes toastIn{ from{ transform:translate(-50%,14px); opacity:0; } to{ transform:translate(-50%,0); opacity:1; } }
+.toast.out{ animation:toastOut var(--dur-2) var(--ease-out) forwards; }
+@keyframes toastOut{ to{ transform:translate(-50%,10px); opacity:0; } }
+
+/* ---- Title screen ---- */
+.hero{ padding:26px 0 8px; }
+.hero .kicker{ margin-bottom:14px; }
+.hero h1{
+  font-family:var(--f-display); font-weight:900; text-transform:uppercase;
+  font-size:clamp(78px,26vw,124px); line-height:.82; letter-spacing:-.06em;
+  background:linear-gradient(175deg,var(--chalk) 42%,#8E97AC);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.hero h1 em{ font-style:normal; color:var(--volt); -webkit-text-fill-color:var(--volt); }
+.hero .sub{ margin-top:16px; font-size:16.5px; line-height:1.4; color:var(--chalk-soft); max-width:26ch; }
+.hero .sub b{ color:var(--chalk); font-weight:650; }
+
+.facts{ display:flex; flex-direction:column; gap:1px; margin:24px 0 4px;
+  border-top:1px solid var(--line); }
+.fact{ display:flex; align-items:baseline; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); }
+.fact .fnum{ font-family:var(--f-mono); font-size:15px; color:var(--volt); width:34px; flex:none; letter-spacing:-.03em; }
+.fact .ftxt{ font-size:13px; color:var(--chalk-dim); line-height:1.4; }
+.fact .ftxt b{ color:var(--chalk-soft); font-weight:650; }
+
+.bestchip{
+  display:inline-flex; align-items:center; gap:8px; margin-top:16px;
+  padding:7px 12px; border-radius:var(--r-pill);
+  border:1px solid var(--line); background:rgba(255,255,255,.02);
+  font-size:11.5px; color:var(--chalk-dim);
+}
+.bestchip b{ font-family:var(--f-mono); color:var(--chalk); letter-spacing:-.02em; }
+
+/* ---- Results ---- */
+.verdict{ padding:22px 0 4px; text-align:center; }
+.verdict .vtitle{
+  font-family:var(--f-display); font-weight:900; text-transform:uppercase;
+  font-size:clamp(38px,12.5vw,58px); line-height:.9; letter-spacing:-.045em;
+  animation:vIn var(--dur-4) var(--ease-spring) backwards;
+}
+@keyframes vIn{ from{ opacity:0; transform:translateY(12px) scale(.96);} to{ opacity:1; transform:none;} }
+.verdict .vline{ margin:12px auto 0; max-width:30ch; font-size:13.5px; color:var(--chalk-dim); line-height:1.5; }
+.verdict.is-perfect .vtitle{ color:var(--volt); text-shadow:0 0 40px rgba(201,255,77,.45); }
+
+.scoreline{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:1px; margin:22px 0 0;
+  border:1px solid var(--line); border-radius:var(--r-md); overflow:hidden; background:var(--line);
+}
+.sl{ background:var(--ink-850); padding:14px 8px; text-align:center; }
+.sl b{ display:block; font-family:var(--f-mono); font-size:34px; font-weight:600; letter-spacing:-.05em; line-height:1; }
+.sl span{ display:block; margin-top:7px; font-size:9.5px; font-weight:700; letter-spacing:.16em; color:var(--chalk-ghost); }
+.sl--w b{ color:var(--volt); } .sl--d b{ color:var(--amber); } .sl--l b{ color:var(--flare); }
+
+.ptsrow{ display:flex; justify-content:space-between; align-items:center;
+  padding:13px 2px 0; font-size:12px; color:var(--chalk-dim); }
+.ptsrow b{ font-family:var(--f-mono); color:var(--chalk); font-size:15px; letter-spacing:-.02em; }
+
+/* the season, one square per match */
+.season{ display:grid; grid-template-columns:repeat(10,1fr); gap:4px; margin:14px 0 2px; }
+.season i{
+  aspect-ratio:1; border-radius:2.5px; background:var(--ink-700);
+  animation:sq var(--dur-2) var(--ease-out) backwards;
+}
+@keyframes sq{ from{ opacity:0; transform:scale(.55);} to{ opacity:1; transform:none;} }
+.season i[data-r="W"]{ background:var(--volt); }
+.season i[data-r="D"]{ background:var(--amber); }
+.season i[data-r="L"]{ background:var(--flare); }
+.seasonkey{ display:flex; gap:14px; justify-content:center; margin-top:10px; font-size:10px; color:var(--chalk-faint); }
+.seasonkey span{ display:inline-flex; align-items:center; gap:5px; }
+.seasonkey i{ width:8px; height:8px; border-radius:2px; }
+
+/* phase meters with the gate threshold marked */
+.meters{ display:flex; flex-direction:column; gap:11px; margin-top:6px; }
+.meter .mtop{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px; }
+.meter .mname{ font-size:11px; font-weight:650; letter-spacing:.04em; color:var(--chalk-soft); }
+.meter .mval{ font-family:var(--f-mono); font-size:12px; color:var(--chalk); letter-spacing:-.02em; }
+.meter .mtrack{ position:relative; height:7px; border-radius:var(--r-pill); background:var(--ink-700); overflow:hidden; }
+.meter .mfill{
+  position:absolute; inset:0 auto 0 0; width:0;
+  border-radius:var(--r-pill); background:linear-gradient(90deg,var(--ultra),var(--volt));
+  transition:width 900ms var(--ease-out);
+}
+.meter.fail .mfill{ background:linear-gradient(90deg,#8C2F49,var(--flare)); }
+.meter .mgate{
+  position:absolute; top:-3px; bottom:-3px; width:2px; border-radius:1px;
+  background:var(--chalk); opacity:.55;
+}
+.meter.fail .mval{ color:var(--flare); }
+.meter .mnote{ margin-top:5px; font-size:10.5px; color:var(--flare); }
+
+/* the drafted XI, as a list */
+.xi{ display:flex; flex-direction:column; gap:1px; border-top:1px solid var(--line); }
+.xirow{ display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--line); }
+.xirow .xslot{ width:36px; flex:none; font-size:9.5px; font-weight:800; letter-spacing:.1em; color:var(--chalk-ghost); }
+.xirow .xname{ flex:1; min-width:0; font-weight:600; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.xirow .xclub{ font-size:10.5px; color:var(--chalk-faint); white-space:nowrap; }
+.xirow .xfit{ font-size:9.5px; font-weight:700; letter-spacing:.06em; color:var(--amber); }
+.xirow .xfit.ok{ color:var(--volt); } .xirow .xfit.mid{ color:var(--chalk-dim); }
+.xirow .xfit.warn{ color:var(--amber); } .xirow .xfit.bad{ color:var(--flare); }
+
+/* ---- Misc ---- */
+.note{ font-size:11.5px; line-height:1.55; color:var(--chalk-faint); }
+.cardwrap{
+  border:1px solid var(--line); border-radius:var(--r-lg);
+  background:linear-gradient(180deg,rgba(20,24,38,.55),rgba(10,12,20,.55));
+  padding:14px; box-shadow:var(--lift-1);
+}
+.spinmeta{ display:flex; align-items:center; gap:10px; margin-top:12px; }
+.spinmeta .crest{ box-shadow:var(--lift-2); }
+.spinmeta .smname{ font-family:var(--f-display); font-weight:900; font-size:19px; letter-spacing:-.03em; text-transform:uppercase; line-height:1; }
+.spinmeta .smera{ font-size:11px; color:var(--chalk-faint); margin-top:4px; letter-spacing:.08em; }
+.skips{ display:flex; gap:8px; }
+.skips .btn{ flex:1; }
+.skipct{ font-family:var(--f-mono); font-size:10px; opacity:.75; }
 
 /* Test-harness report overlay (?test=1) */
 .testrpt{
@@ -194,13 +550,14 @@ svg{display:block;}
   background:rgba(5,6,10,.97); padding:24px 18px calc(24px + var(--safe-b));
   font-family:var(--f-mono); font-size:12px; line-height:1.55;
 }
-.testrpt h2{font-family:var(--f-display); font-size:26px; margin-bottom:4px;}
-.testrpt .t-row{display:flex; gap:10px; padding:5px 0; border-bottom:1px solid var(--line-faint);}
-.testrpt .t-pass{color:var(--volt);} .testrpt .t-fail{color:var(--flare);}
-.testrpt .t-name{flex:1; color:var(--chalk-soft); word-break:break-word;}
-.testrpt .t-note{color:var(--chalk-faint); white-space:pre-wrap;}
-.testrpt .t-sum{margin:14px 0 18px; padding:12px 14px; border:1px solid var(--line-strong); border-radius:var(--r-md);}
-.testrpt pre{white-space:pre; overflow-x:auto; color:var(--chalk-soft); margin:10px 0 0;}
+.testrpt h2{ font-family:var(--f-display); font-size:26px; margin-bottom:4px; }
+.testrpt .t-row{ display:flex; gap:10px; padding:5px 0; border-bottom:1px solid var(--line-faint); }
+.testrpt .t-pass{ color:var(--volt); } .testrpt .t-fail{ color:var(--flare); }
+.testrpt .t-name{ flex:1; color:var(--chalk-soft); word-break:break-word; }
+.testrpt .t-note{ color:var(--chalk-faint); white-space:pre-wrap; }
+.testrpt .t-sum{ margin:14px 0 18px; padding:12px 14px; border:1px solid var(--line-strong); border-radius:var(--r-md); }
+.testrpt pre{ white-space:pre; overflow-x:auto; color:var(--chalk-soft); margin:10px 0 0; }
+
 </style>
 </head>
 <body>
@@ -1201,6 +1558,21 @@ function effectiveRatings(player, slotRole){
   return gk >= emergency ? r : Object.assign({}, r, { gk: emergency });
 }
 
+/**
+ * What a player is actually worth in a slot, as a fraction of what they are
+ * worth in their own position. This is the number a manager wants: the raw
+ * `fit` multiplier hides the emergency-keeper floor, so a striker in goal
+ * would otherwise read as a mild 80% rather than the disaster it is.
+ */
+function slotEffectiveness(player, slotRole){
+  if(!player || !player.ratings) return 0;
+  const inSlot = phaseScore(effectiveRatings(player, slotRole), CONFIG.PHASE[slotRole]) *
+                 fitFor(slotRole, player.position);
+  const natural = phaseScore(effectiveRatings(player, player.position),
+                             CONFIG.PHASE[player.position] || CONFIG.PHASE.MID);
+  return natural > 0 ? inSlot / natural : 0;
+}
+
 /** Weighted roll-up of one player's attributes for the slot they are filling. */
 function phaseScore(ratings, weights){
   let total = 0;
@@ -1343,14 +1715,23 @@ function difficultyCurve(){
   return out;
 }
 
-/** A stable seed derived from the lineup itself, so a squad has one season. */
+/**
+ * A stable seed derived from the lineup itself, so a squad has exactly one
+ * season in it. Players are grouped by ROLE and sorted within the group, so
+ * putting the same two centre-backs in the other order is the same team and
+ * gets the same season — which is what a manager would expect.
+ */
 function lineupSeed(lineup){
   const L = (lineup && typeof lineup === 'object') ? lineup : {};
-  const parts = CONFIG.FORMATION.map(slot => {
+  const byRole = {};
+  for(const slot of CONFIG.FORMATION){
     const p = L[slot.id];
-    if(!p || typeof p !== 'object') return slot.id + ':-';
-    return slot.id + ':' + (p.name || '?') + ':' + (p.club || '?') + ':' + (p.era || '?');
-  });
+    const tag = (p && typeof p === 'object')
+      ? (p.name || '?') + ':' + (p.club || '?') + ':' + (p.era || '?')
+      : '-';
+    (byRole[slot.role] ||= []).push(tag);
+  }
+  const parts = Object.keys(byRole).sort().map(role => role + '=' + byRole[role].sort().join(','));
   return hashString(parts.join('|'));
 }
 
@@ -1669,6 +2050,40 @@ function testSim(){
     analyseLineup(oneEra).chem > analyseLineup(mixed).chem,
     analyseLineup(oneEra).chem.toFixed(3) + ' vs ' + analyseLineup(mixed).chem.toFixed(3));
 
+  // Swapping two players between slots of the same role is the same team.
+  (() => {
+    const alpha = { name:'Alpha', club:'X', era:'2010s', position:'DEF',
+      ratings:{attack:40,creativity:60,defense:88,physical:84,gk:6} };
+    const beta  = { name:'Beta',  club:'Y', era:'2000s', position:'DEF',
+      ratings:{attack:30,creativity:50,defense:80,physical:90,gk:6} };
+    const mk = (d1,d2) => Object.assign(uniformLineup(80), { DEF1:d1, DEF2:d2 });
+    const r1 = simulateSeason(mk(alpha, beta));
+    const r2 = simulateSeason(mk(beta, alpha));
+    check('SIM: swapping two players between same-role slots gives the same season',
+      r1.results.join('') === r2.results.join(''),
+      r1.wins + '-' + r1.draws + '-' + r1.losses + ' vs ' + r2.wins + '-' + r2.draws + '-' + r2.losses);
+  })();
+
+  // The effectiveness figure shown in the UI must tell the truth.
+  (() => {
+    const striker = { name:'S', club:'X', era:'2020s', position:'FWD',
+      ratings:{attack:90,creativity:80,defense:30,physical:80,gk:6} };
+    const keeper  = { name:'K', club:'X', era:'2020s', position:'GK',
+      ratings:{attack:5,creativity:55,defense:40,physical:80,gk:90} };
+    check('SIM: a player is 100% effective in their own position',
+      Math.abs(slotEffectiveness(striker,'FWD') - 1) < 1e-9 &&
+      Math.abs(slotEffectiveness(keeper,'GK') - 1) < 1e-9);
+    check('SIM: a striker in goal is reported as less than half a player',
+      slotEffectiveness(striker,'GK') < 0.5,
+      Math.round(slotEffectiveness(striker,'GK')*100) + '%');
+    check('SIM: a keeper outfield is reported as a disaster too',
+      slotEffectiveness(keeper,'DEF') < 0.5,
+      Math.round(slotEffectiveness(keeper,'DEF')*100) + '%');
+    check('SIM: a forward in midfield is a mild downgrade, not a disaster',
+      slotEffectiveness(striker,'MID') > 0.6 && slotEffectiveness(striker,'MID') < 1,
+      Math.round(slotEffectiveness(striker,'MID')*100) + '%');
+  })();
+
   // Out-of-position play must hurt.
   const proper = uniformLineup(85);
   const scrambled = uniformLineup(85);
@@ -1707,11 +2122,877 @@ function testSim(){
 }
 
 
+
+/* ============================================================================
+   5. DRAFT — the round/spin/skip state machine
+   ----------------------------------------------------------------------------
+   Six rounds. Each round the machine lands on a (club, era) cell, offers that
+   pool, and the player takes one and assigns them to an empty slot.
+
+   Determinism: every draw comes from one seeded stream, in order. On the daily
+   seed that means the same date always produces the same first spin, the same
+   offered pool, and — given the same choices — the same game. Free play seeds
+   itself from the clock instead.
+   ============================================================================ */
+
+const GAME = {
+  screen: 'title',      // title | draft | results
+  phase: 'idle',        // idle | spinning | picking   (within the draft)
+  mode: 'daily',        // daily | free
+  seedKey: '',
+  rnd: null,
+  round: 0,
+  cell: null,           // the club/era cell currently on the reels
+  offered: [],
+  usedCells: null,
+  usedNames: null,
+  lineup: {},
+  picks: [],
+  skips: { club:0, era:0 },
+  pending: null,        // player chosen, awaiting a slot
+  justFilled: null,     // slot id to pop, once
+  result: null,
+};
+
+function newGame(mode){
+  GAME.screen = 'draft';
+  GAME.phase = 'idle';
+  GAME.mode = mode === 'free' ? 'free' : 'daily';
+  GAME.seedKey = GAME.mode === 'daily'
+    ? utcDateKey()
+    : 'free-' + Date.now().toString(36) + '-' + Math.floor(Math.random()*1e9).toString(36);
+  GAME.rnd = mulberry32(hashString('38-0::' + GAME.seedKey));
+  GAME.round = 0;
+  GAME.cell = null;
+  GAME.offered = [];
+  GAME.usedCells = new Set();
+  GAME.usedNames = new Set();
+  GAME.lineup = {};
+  GAME.picks = [];
+  GAME.skips = { club: CONFIG.DRAFT.CLUB_SKIPS, era: CONFIG.DRAFT.ERA_SKIPS };
+  GAME.pending = null;
+  GAME.justFilled = null;
+  GAME.result = null;
+  return GAME;
+}
+
+/** Cells still worth landing on: not already drafted from, and with players left. */
+function availableCells(){
+  const open = POOL.cells.filter(c =>
+    !GAME.usedCells.has(cellKey(c.club, c.era)) &&
+    c.players.some(p => !GAME.usedNames.has(p.name)));
+  return open.length ? open : POOL.cells;
+}
+
+function spinCell(){ return rngPick(GAME.rnd, availableCells()); }
+
+/** Re-spin one reel, holding the other. Returns null if nothing else is available. */
+function respinClub(){
+  const opts = availableCells().filter(c => c.era === GAME.cell.era && c.club !== GAME.cell.club);
+  return opts.length ? rngPick(GAME.rnd, opts) : null;
+}
+function respinEra(){
+  const opts = availableCells().filter(c => c.club === GAME.cell.club && c.era !== GAME.cell.era);
+  return opts.length ? rngPick(GAME.rnd, opts) : null;
+}
+
+/** A player's headline number: what they are worth in their natural position. */
+function playerOVR(p){
+  return Math.round(phaseScore(effectiveRatings(p, p.position), CONFIG.PHASE[p.position] || CONFIG.PHASE.MID));
+}
+
+const POS_ORDER = { GK:0, DEF:1, MID:2, FWD:3 };
+
+/** Deterministically pick which of a cell's players are offered this round. */
+function offerFrom(cell){
+  const left = cell.players.filter(p => !GAME.usedNames.has(p.name));
+  return rngShuffle(GAME.rnd, left)
+    .slice(0, CONFIG.DRAFT.POOL_SHOWN)
+    .sort((a,b) => (POS_ORDER[a.position] - POS_ORDER[b.position]) || (playerOVR(b) - playerOVR(a)));
+}
+
+function openSlots(){ return CONFIG.FORMATION.filter(s => !GAME.lineup[s.id]); }
+
+/** Commit the pending player into a slot and advance the round. */
+function assignPending(slotId){
+  if(!GAME.pending || GAME.lineup[slotId]) return false;
+  const player = GAME.pending;
+  GAME.lineup[slotId] = player;
+  GAME.usedNames.add(player.name);
+  if(GAME.cell) GAME.usedCells.add(cellKey(GAME.cell.club, GAME.cell.era));
+  GAME.picks.push({ round: GAME.round, slotId, player, club: player.club, era: player.era });
+  GAME.pending = null;
+  GAME.justFilled = slotId;
+  GAME.round++;
+
+  if(GAME.round >= CONFIG.DRAFT.ROUNDS){
+    GAME.result = simulateSeason(GAME.lineup);
+    GAME.screen = 'results';
+    GAME.prevBest = loadBest();      // read before we overwrite it, for the "new best" flag
+    recordBest(GAME.result);
+  }else{
+    GAME.cell = null;
+    GAME.offered = [];
+    GAME.phase = 'idle';
+  }
+  return true;
+}
+
+
+/* ============================================================================
+   PERSONAL BEST — localStorage only, and never allowed to break the game.
+   ============================================================================ */
+function loadBest(){
+  try{
+    const raw = localStorage.getItem(CONFIG.STORAGE_KEY);
+    if(!raw) return null;
+    const b = JSON.parse(raw);
+    if(!b || typeof b.wins !== 'number') return null;
+    return b;
+  }catch(e){ return null; }
+}
+
+function recordBest(result){
+  if(T.running) return null;        // the self-test plays games; it must not
+                                    // overwrite the player's personal best
+  try{
+    const pts = pointsFrom(result);
+    const prev = loadBest();
+    if(prev && (prev.points > pts || (prev.points === pts && prev.wins >= result.wins))) return prev;
+    const next = {
+      wins: result.wins, draws: result.draws, losses: result.losses,
+      points: pts, verdict: verdictFor(result).title,
+      mode: GAME.mode, seedKey: GAME.seedKey, at: utcDateKey(),
+    };
+    localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(next));
+    return next;
+  }catch(e){ return null; }
+}
+
+
+/* ---- Draft self-checks ---------------------------------------------------- */
+function testDraft(){
+  const snapshot = JSON.parse(JSON.stringify({ round: GAME.round }));   // touch, then restore below
+
+  // The daily seed must produce the same opening spin every time.
+  const firstOf = () => {
+    newGame('daily');
+    const c = spinCell();
+    const offered = offerFrom(c).map(p => p.name);
+    return c.club + '|' + c.era + '|' + offered.join(',');
+  };
+  check('DRAFT: the daily seed gives an identical first spin and pool on reload',
+    firstOf() === firstOf(), firstOf().split('|').slice(0,2).join(' '));
+
+  // ...and free play must not.
+  newGame('free'); const f1 = GAME.seedKey;
+  newGame('free'); const f2 = GAME.seedKey;
+  check('DRAFT: free play reseeds every game', f1 !== f2);
+
+  // A full automated playthrough: six rounds, six slots, no repeats.
+  newGame('daily');
+  let guard = 0;
+  while(GAME.screen === 'draft' && guard++ < 50){
+    GAME.cell = spinCell();
+    GAME.offered = offerFrom(GAME.cell);
+    GAME.phase = 'picking';
+    GAME.pending = GAME.offered[0];
+    const slot = openSlots()[0];
+    assignPending(slot.id);
+  }
+  check('DRAFT: a playthrough completes in exactly six rounds',
+    GAME.picks.length === CONFIG.DRAFT.ROUNDS, GAME.picks.length + ' picks');
+  check('DRAFT: every slot is filled and none is stacked',
+    CONFIG.FORMATION.every(s => !!GAME.lineup[s.id]) &&
+    new Set(Object.values(GAME.lineup).map(p=>p.name)).size === CONFIG.FORMATION.length);
+  check('DRAFT: no player is drafted twice',
+    new Set(GAME.picks.map(p=>p.player.name)).size === GAME.picks.length);
+  check('DRAFT: no club/era cell is drafted from twice',
+    new Set(GAME.picks.map(p=>p.club+'|'+p.era)).size === GAME.picks.length);
+  check('DRAFT: finishing the draft produces a season',
+    GAME.screen === 'results' && GAME.result &&
+    GAME.result.wins + GAME.result.draws + GAME.result.losses === CONFIG.SEASON.MATCHES);
+
+  // Skips hold one reel and change the other.
+  newGame('daily');
+  GAME.cell = spinCell();
+  const era0 = GAME.cell.era, club0 = GAME.cell.club;
+  const alt = respinClub();
+  check('DRAFT: a club skip holds the era and changes the club',
+    !alt || (alt.era === era0 && alt.club !== club0),
+    alt ? (club0 + ' -> ' + alt.club + ' (' + era0 + ')') : 'no alternative club in this era');
+  const alt2 = respinEra();
+  check('DRAFT: an era skip holds the club and changes the era',
+    !alt2 || (alt2.club === club0 && alt2.era !== era0),
+    alt2 ? (era0 + ' -> ' + alt2.era + ' (' + club0 + ')') : 'no alternative era at this club');
+
+  // Skip budget.
+  newGame('daily');
+  check('DRAFT: one club skip and one era skip per game',
+    GAME.skips.club === CONFIG.DRAFT.CLUB_SKIPS && GAME.skips.era === CONFIG.DRAFT.ERA_SKIPS);
+
+  // Offered pools never exceed the configured size, and never repeat a name.
+  newGame('daily');
+  let poolsOk = true;
+  for(let i=0;i<40;i++){
+    const c = spinCell(), o = offerFrom(c);
+    if(o.length > CONFIG.DRAFT.POOL_SHOWN || o.length === 0) poolsOk = false;
+    if(new Set(o.map(p=>p.name)).size !== o.length) poolsOk = false;
+  }
+  check('DRAFT: every offered pool is 1..POOL_SHOWN players with no repeats', poolsOk);
+
+  // localStorage must never be able to break the game.
+  let storageSafe = true;
+  try{ loadBest(); recordBest({wins:1,draws:1,losses:36}); }catch(e){ storageSafe = false; }
+  check('DRAFT: personal-best storage is wrapped and cannot throw', storageSafe);
+
+  void snapshot;
+  newGame('daily');
+}
+
+/* ============================================================================
+   6. VIEW — screens, the slot machine, and the sound of a mechanical reel
+   ============================================================================ */
+
+const REDUCED = (typeof matchMedia === 'function')
+  ? matchMedia('(prefers-reduced-motion: reduce)').matches : false;
+
+/* ---- Sound. Synthesised on the fly: no files, no network. ---------------- */
+const SFX = {
+  ctx: null,
+  on: true,
+  init(){
+    if(this.ctx || !this.on) return;
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(AC) this.ctx = new AC();
+    }catch(e){ this.ctx = null; }
+  },
+  tone(freq, dur, type, gain, when){
+    if(!this.on) return;
+    this.init();
+    const ctx = this.ctx; if(!ctx) return;
+    try{
+      const t0 = ctx.currentTime + (when || 0);
+      const osc = ctx.createOscillator(), amp = ctx.createGain();
+      osc.type = type || 'square';
+      osc.frequency.setValueAtTime(freq, t0);
+      amp.gain.setValueAtTime(0.0001, t0);
+      amp.gain.exponentialRampToValueAtTime(gain || 0.05, t0 + 0.006);
+      amp.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(amp); amp.connect(ctx.destination);
+      osc.start(t0); osc.stop(t0 + dur + 0.02);
+    }catch(e){}
+  },
+  click(when){ this.tone(1750, 0.022, 'square', 0.028, when); },
+  detent(){ this.tone(420, 0.09, 'triangle', 0.07); },
+  pick(){ this.tone(880, 0.07, 'triangle', 0.05); this.tone(1320, 0.09, 'triangle', 0.035, 0.05); },
+  /* The reel decelerating: ticks that space out on an ease-out curve. */
+  reelTicks(duration){
+    if(!this.on || REDUCED) return;
+    const n = 22;
+    for(let i=0;i<n;i++){
+      const t = i / n;
+      this.click((1 - Math.pow(1 - t, 2.4)) * duration / 1000);
+    }
+  },
+  fanfare(perfect){
+    const notes = perfect ? [523,659,784,1047,1319] : [392,523,659];
+    notes.forEach((f,i) => this.tone(f, 0.26, 'triangle', 0.05, i * 0.1));
+  },
+  thud(){ this.tone(120, 0.3, 'sine', 0.09); },
+};
+
+/* ---- Small view helpers -------------------------------------------------- */
+let crestSeq = 0;
+
+/** Pick black or white text for legibility on a given background. */
+function contrastOn(hex){
+  const h = String(hex).replace('#','');
+  const n = h.length === 3 ? h.split('').map(c=>c+c).join('') : h;
+  const r = parseInt(n.slice(0,2),16)/255, g = parseInt(n.slice(2,4),16)/255, b = parseInt(n.slice(4,6),16)/255;
+  const lin = v => v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4);
+  const L = 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b);
+  return L > 0.42 ? '#05060A' : '#F4F6FA';
+}
+
+/** A procedural club crest. Inline SVG — nothing is fetched. */
+function crestSVG(club, size){
+  const m = CLUB_META[club] || { code:'???', primary:'#2E3550', secondary:'#141826' };
+  const s = size || 28;
+  const id = 'cr' + (++crestSeq);
+  const fg = contrastOn(m.primary);
+  return '<svg class="crest" width="'+s+'" height="'+s+'" viewBox="0 0 40 40" role="img" aria-label="'+esc(club)+'">' +
+    '<defs><clipPath id="'+id+'"><rect width="40" height="40" rx="6"/></clipPath></defs>' +
+    '<g clip-path="url(#'+id+')">' +
+      '<rect width="40" height="40" fill="'+m.primary+'"/>' +
+      '<path d="M0 40 L0 29 L40 12 L40 40 Z" fill="'+m.secondary+'" opacity=".55"/>' +
+      '<rect width="40" height="40" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2"/>' +
+    '</g>' +
+    '<text x="20" y="24.5" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" ' +
+      'font-size="13.5" font-weight="900" letter-spacing="-.4" fill="'+fg+'">'+esc(m.code)+'</text>' +
+  '</svg>';
+}
+
+const ATTR_KEYS = [
+  { k:'attack',     s:'ATT', c:'var(--flare)' },
+  { k:'creativity', s:'CRE', c:'var(--ultra-soft)' },
+  { k:'defense',    s:'DEF', c:'var(--cyan)' },
+  { k:'physical',   s:'PHY', c:'var(--volt)' },
+  { k:'gk',         s:'GK',  c:'var(--amber)' },
+];
+
+function attrsHTML(p){
+  return '<div class="attrs">' + ATTR_KEYS.map(a =>
+    '<div class="attr"><i style="--v:'+clamp(p.ratings[a.k],0,100)+'%;--attrc:'+a.c+'"></i><span>'+a.s+'</span></div>'
+  ).join('') + '</div>';
+}
+
+let toastTimer = null;
+function toast(msg){
+  const old = document.querySelector('.toast');
+  if(old) old.remove();
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.setAttribute('role','status');
+  el.textContent = msg;
+  document.body.appendChild(el);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.classList.add('out');
+    setTimeout(() => el.remove(), 260);
+  }, 2100);
+}
+
+const ROOT = () => document.getElementById('app');
+
+
+/* ============================================================================
+   TITLE
+   ============================================================================ */
+function viewTitle(){
+  const best = loadBest();
+  return '<div class="shell">' +
+    topbarHTML({ minimal:true }) +
+    '<div class="stage">' +
+      '<div class="hero">' +
+        '<p class="eyebrow kicker">Premier League &middot; team&#8209;builder</p>' +
+        '<h1>38<em>&#8209;</em>0</h1>' +
+        '<p class="sub">Six spins. Six legends. <b>One impossible season.</b></p>' +
+      '</div>' +
+      '<div class="facts">' +
+        '<div class="fact"><span class="fnum">38</span><span class="ftxt">matches in a Premier League season</span></div>' +
+        '<div class="fact"><span class="fnum">12</span><span class="ftxt">draws that stopped Arsenal&rsquo;s <b>2003&#8209;04 Invincibles</b> going perfect</span></div>' +
+        '<div class="fact"><span class="fnum">0</span><span class="ftxt">teams have ever won <b>all thirty&#8209;eight</b></span></div>' +
+      '</div>' +
+      '<p class="note" style="margin-top:18px">The machine spins a club and an era. You take one player from that pool and give them a shirt. Do it six times, then we play the season out.</p>' +
+      (best ? '<div class="bestchip">Personal best <b>' + best.wins + '&#8209;' + best.draws + '&#8209;' + best.losses +
+        '</b> &middot; ' + esc(best.verdict) + '</div>' : '') +
+    '</div>' +
+    '<div class="dock">' +
+      '<button class="btn btn--primary" data-act="new-daily">Today&rsquo;s draft &middot; ' + utcDateKey() + '</button>' +
+      '<button class="btn btn--ghost" data-act="new-free" style="margin-top:8px">Free play</button>' +
+      '<p class="note" style="text-align:center;margin-top:10px">Everyone gets the same spins on the same day.</p>' +
+    '</div>' +
+  '</div>';
+}
+
+
+/* ============================================================================
+   TOP BAR
+   ============================================================================ */
+function topbarHTML(opts){
+  const o = opts || {};
+  const pips = o.minimal ? '' : '<div class="pips" aria-label="Round ' + (GAME.round+1) + ' of ' + CONFIG.DRAFT.ROUNDS + '">' +
+    CONFIG.FORMATION.map((_, i) =>
+      '<i class="pip ' + (i < GAME.round ? 'done' : i === GAME.round ? 'live' : '') + '"></i>'
+    ).join('') + '</div>';
+
+  return '<header class="topbar">' +
+    '<div class="mark">38<b>&#8209;</b>0</div>' +
+    (o.minimal ? '<div class="spacer"></div>' : '<div class="spacer"></div>' + pips + '<div class="spacer"></div>') +
+    '<button class="iconbtn" data-act="sound" aria-pressed="' + (SFX.on?'true':'false') + '" ' +
+      'aria-label="' + (SFX.on?'Mute':'Unmute') + '" title="' + (SFX.on?'Mute':'Unmute') + '">' + soundIcon(SFX.on) + '</button>' +
+    (o.minimal ? '' : '<button class="iconbtn" data-act="quit" aria-label="Abandon draft" title="Abandon draft">' + xIcon() + '</button>') +
+  '</header>';
+}
+
+function soundIcon(on){
+  return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M11 5 6 9H3v6h3l5 4z"/>' +
+    (on ? '<path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>'
+        : '<path d="M17 9l4 6"/><path d="M21 9l-4 6"/>') +
+  '</svg>';
+}
+function xIcon(){
+  return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+}
+
+
+/* ============================================================================
+   DRAFT
+   ============================================================================ */
+function viewDraft(){
+  const spinning = GAME.phase === 'spinning';
+  const picking  = GAME.phase === 'picking';
+  const cell = GAME.cell;
+
+  /* --- reels --- */
+  const clubReel = (picking && cell)
+    ? '<div class="reel-track">' + reelItemHTML('club', cell.club) + '</div>'
+    : (spinning ? '<div class="reel-track"></div>' : '<div class="reel-track">' + reelItemHTML('club', null) + '</div>');
+  const eraReel = (picking && cell)
+    ? '<div class="reel-track">' + reelItemHTML('era', cell.era) + '</div>'
+    : (spinning ? '<div class="reel-track"></div>' : '<div class="reel-track">' + reelItemHTML('era', null) + '</div>');
+
+  const reels =
+    '<div class="reelbay">' +
+      '<div class="reel' + (picking?' locked':'') + '" id="reel-club"><span class="reel-cap">Club</span>' + clubReel + '</div>' +
+      '<div class="reel' + (picking?' locked':'') + '" id="reel-era"><span class="reel-cap">Era</span>' + eraReel + '</div>' +
+    '</div>';
+
+  /* --- the pool, or an instruction --- */
+  let body = '';
+  if(picking && cell){
+    const left = cell.players.filter(p => !GAME.usedNames.has(p.name)).length;
+    body =
+      skipsHTML() +
+      '<div class="sechead"><h2>Take one</h2><span class="rule"></span>' +
+        '<span class="label">' + GAME.offered.length + ' of ' + left + '</span></div>' +
+      '<div class="pool">' + GAME.offered.map((p,i) => playerCardHTML(p,i)).join('') + '</div>';
+  }else if(spinning){
+    body = '<p class="note" style="text-align:center;margin-top:26px">Spinning&hellip;</p>';
+  }else{
+    body =
+      '<div class="sechead"><h2>Round ' + (GAME.round+1) + '</h2><span class="rule"></span>' +
+        '<span class="label">' + (CONFIG.DRAFT.ROUNDS - GAME.round) + ' picks left</span></div>' +
+      '<p class="note">Pull the handle. The machine picks a club and an era; you pick the player.</p>' +
+      (GAME.picks.length ? recentPicksHTML() : '');
+  }
+
+  /* --- dock: the lineup so far, plus the primary action --- */
+  const dock =
+    '<div class="dock">' +
+      '<div class="lineup" aria-label="Your lineup">' + CONFIG.FORMATION.map(slotMiniHTML).join('') + '</div>' +
+      (picking ? '' :
+        '<button class="btn btn--primary" style="margin-top:10px" data-act="spin"' + (spinning?' disabled':'') + '>' +
+          (spinning ? 'Spinning&hellip;' : 'Spin &middot; round ' + (GAME.round+1) + ' of ' + CONFIG.DRAFT.ROUNDS) +
+        '</button>') +
+    '</div>';
+
+  return '<div class="shell">' + topbarHTML({}) +
+    '<div class="stage">' + reels + body + '</div>' + dock +
+    (GAME.pending ? assignSheetHTML() : '') +
+  '</div>';
+}
+
+function reelItemHTML(kind, value){
+  if(kind === 'club'){
+    if(!value) return '<div class="reel-item"><div class="rname faint">&mdash;&mdash;&mdash;</div></div>';
+    return '<div class="reel-item">' + crestSVG(value, 32) + '<div class="rname">' + esc(value) + '</div></div>';
+  }
+  if(!value) return '<div class="reel-item"><div class="rera faint">&mdash;&mdash;</div></div>';
+  return '<div class="reel-item"><div class="rera">' + esc(value) + '</div></div>';
+}
+
+function skipsHTML(){
+  const c = GAME.skips.club, e = GAME.skips.era;
+  return '<div class="skips" style="margin-top:14px">' +
+    '<button class="btn btn--ghost btn--sm" data-act="skip-club"' + (c?'':' disabled') + '>' +
+      'Skip club <span class="skipct">' + c + '</span></button>' +
+    '<button class="btn btn--ghost btn--sm" data-act="skip-era"' + (e?'':' disabled') + '>' +
+      'Skip era <span class="skipct">' + e + '</span></button>' +
+  '</div>';
+}
+
+/** What this player would be worth in the best slot you have left open.
+    The single most useful thing to know while choosing, so it goes on the card. */
+function fitHintHTML(p){
+  const open = openSlots();
+  if(!open.length) return '';
+  const best = open.reduce((a,b) =>
+    slotEffectiveness(p,b.role) > slotEffectiveness(p,a.role) ? b : a);
+  const eff = slotEffectiveness(p, best.role);
+  return eff >= 1
+    ? '<span class="fithint ok">&rarr;&nbsp;' + best.short + '</span>'
+    : '<span class="fithint ' + effClass(eff) + '">&rarr;&nbsp;' + best.short +
+      '&nbsp;' + Math.round(eff*100) + '%</span>';
+}
+
+/** Colour band for an effectiveness figure. */
+function effClass(eff){
+  if(eff >= 1)   return 'ok';
+  if(eff >= 0.8) return 'mid';
+  if(eff >= 0.6) return 'warn';
+  return 'bad';
+}
+
+function playerCardHTML(p, i){
+  const m = CLUB_META[p.club] || {};
+  return '<button class="pcard" data-act="choose" data-i="' + i + '" ' +
+      'style="--accent:' + (m.primary||'var(--ink-500)') + ';animation-delay:' + (i*38) + 'ms">' +
+    '<div class="pmain">' +
+      '<div class="pname">' + esc(p.name) + '</div>' +
+      '<div class="pmeta"><span class="posbadge" data-p="' + p.position + '">' + p.position + '</span>' +
+        fitHintHTML(p) + '</div>' +
+      attrsHTML(p) +
+    '</div>' +
+    '<div class="ovr">' + playerOVR(p) + '<small>OVR</small></div>' +
+  '</button>';
+}
+
+function slotMiniHTML(slot){
+  const p = GAME.lineup[slot.id];
+  const just = GAME.justFilled === slot.id ? ' just' : '';
+  if(!p){
+    return '<div class="slotmini' + just + '"><span class="sm-dot"></span><span class="sm-pos">' + slot.short + '</span></div>';
+  }
+  const m = CLUB_META[p.club] || {};
+  const initials = p.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  return '<div class="slotmini filled' + just + '" title="' + esc(p.name) + '">' +
+    '<span class="sm-dot" style="border-color:' + (m.primary||'#555') + ';background:' + (m.primary||'#555') + '33"></span>' +
+    '<span class="sm-ini">' + esc(initials) + '</span>' +
+    '<span class="sm-pos">' + slot.short + '</span>' +
+  '</div>';
+}
+
+function recentPicksHTML(){
+  return '<div class="sechead"><h2>Signed</h2><span class="rule"></span></div>' +
+    '<div class="xi">' + GAME.picks.map(pk => {
+      const slot = CONFIG.FORMATION.find(s => s.id === pk.slotId);
+      return '<div class="xirow"><span class="xslot">' + slot.short + '</span>' +
+        '<span class="xname">' + esc(pk.player.name) + '</span>' +
+        '<span class="xclub">' + esc(pk.club) + ' &middot; ' + esc(pk.era) + '</span></div>';
+    }).join('') + '</div>';
+}
+
+/* ---- Slot assignment sheet ---- */
+function assignSheetHTML(){
+  const p = GAME.pending;
+  const cells = CONFIG.FORMATION.map(slot => {
+    const taken = !!GAME.lineup[slot.id];
+    const eff = slotEffectiveness(p, slot.role);
+    const natural = slot.role === p.position;
+    return '<button class="spick' + (natural?' natural':'') + (taken?' taken':'') + '" ' +
+      'data-act="assign" data-slot="' + slot.id + '"' + (taken?' disabled':'') + '>' +
+      '<span class="sp-role">' + slot.short + '</span>' +
+      '<span class="sp-fit ' + (taken ? '' : effClass(eff)) + '">' +
+        (taken ? 'Taken' : natural ? 'Natural' : Math.round(eff*100) + '%') + '</span>' +
+    '</button>';
+  }).join('');
+
+  return '<div class="scrim" data-act="cancel"></div>' +
+    '<div class="sheet" role="dialog" aria-modal="true" aria-label="Choose a position">' +
+      '<div class="grab"></div>' +
+      '<p class="eyebrow">Give them a shirt</p>' +
+      '<div class="spinmeta" style="margin-top:8px">' + crestSVG(p.club, 32) +
+        '<div><div class="smname">' + esc(p.name) + '</div>' +
+        '<div class="smera">' + esc(p.club) + ' &middot; ' + esc(p.era) + ' &middot; natural ' + p.position + '</div></div>' +
+      '</div>' +
+      '<div class="slotpick">' + cells + '</div>' +
+      '<p class="note">Percentages are what this player is worth in that shirt, against what they are worth in their own. A goalkeeper outfield, or an outfielder in goal, is not a small tax.</p>' +
+      '<button class="btn btn--ghost" style="margin-top:12px" data-act="cancel">Back</button>' +
+    '</div>';
+}
+
+
+/* ============================================================================
+   RESULTS
+   ============================================================================ */
+function viewResults(){
+  const r = GAME.result;
+  const a = r.analysis;
+  const v = verdictFor(r);
+  const perfect = r.wins === CONFIG.SEASON.MATCHES;
+  const best = GAME.prevBest;
+  const pts = pointsFrom(r);
+  const isBest = !best || pts > best.points;
+
+  const squares = r.results.map((c,i) =>
+    '<i data-r="' + c + '" style="animation-delay:' + (200 + i*22) + 'ms"></i>').join('');
+
+  const phaseRows = [
+    { key:'attack',   label:'Attack' },
+    { key:'midfield', label:'Midfield' },
+    { key:'defense',  label:'Defence' },
+    { key:'gk',       label:'Goalkeeping' },
+  ].map(row => {
+    const gate = a.gates.find(g => g.phase === row.key);
+    const val = a.phases[row.key];
+    const fail = gate && gate.failing;
+    return '<div class="meter' + (fail?' fail':'') + '">' +
+      '<div class="mtop"><span class="mname">' + row.label + '</span>' +
+        '<span class="mval">' + val.toFixed(0) + '</span></div>' +
+      '<div class="mtrack"><div class="mfill" data-w="' + clamp(val,0,100) + '"></div>' +
+        (gate ? '<span class="mgate" style="left:' + gate.min + '%" title="Gate ' + gate.min + '"></span>' : '') +
+      '</div>' +
+      (fail ? '<div class="mnote">Below the ' + gate.min + ' line &mdash; it told in the run&#8209;in</div>' : '') +
+    '</div>';
+  }).join('');
+
+  const xiRows = CONFIG.FORMATION.map(slot => {
+    const p = GAME.lineup[slot.id];
+    if(!p) return '';
+    const eff = slotEffectiveness(p, slot.role);
+    return '<div class="xirow">' +
+      '<span class="xslot">' + slot.short + '</span>' +
+      '<span class="xname">' + esc(p.name) + '</span>' +
+      '<span class="xclub">' + esc((CLUB_META[p.club]||{}).code || p.club) + ' &middot; ' + esc(p.era) + '</span>' +
+      (slot.role !== p.position
+        ? '<span class="xfit ' + effClass(eff) + '">' + Math.round(eff*100) + '%</span>' : '') +
+    '</div>';
+  }).join('');
+
+  return '<div class="shell">' +
+    topbarHTML({ minimal:true }) +
+    '<div class="stage">' +
+      '<div class="verdict' + (perfect?' is-perfect':'') + '">' +
+        '<div class="vtitle">' + esc(v.title) + '</div>' +
+        '<p class="vline">' + esc(v.line) + '</p>' +
+      '</div>' +
+      '<div class="scoreline">' +
+        '<div class="sl sl--w"><b>' + r.wins + '</b><span>Won</span></div>' +
+        '<div class="sl sl--d"><b>' + r.draws + '</b><span>Drawn</span></div>' +
+        '<div class="sl sl--l"><b>' + r.losses + '</b><span>Lost</span></div>' +
+      '</div>' +
+      '<div class="ptsrow"><span>Points</span><b>' + pts + '</b></div>' +
+      '<div class="season">' + squares + '</div>' +
+      '<div class="seasonkey">' +
+        '<span><i style="background:var(--volt)"></i>Won</span>' +
+        '<span><i style="background:var(--amber)"></i>Drawn</span>' +
+        '<span><i style="background:var(--flare)"></i>Lost</span>' +
+      '</div>' +
+      (isBest ? '<div class="bestchip" style="margin-top:16px">New personal best</div>' : '') +
+
+      '<div class="sechead"><h2>Where it was won</h2><span class="rule"></span></div>' +
+      '<div class="meters">' + phaseRows + '</div>' +
+      '<p class="note" style="margin-top:12px">Chemistry <b style="color:var(--chalk-soft)">' +
+        (a.chem*100).toFixed(0) + '%</b> &middot; ' +
+        (a.pairs ? a.pairs + ' shared dressing room' + (a.pairs>1?'s':'') : 'no shared dressing rooms') +
+        ' &middot; ' + a.eraCount + ' era' + (a.eraCount===1?'':'s') + '</p>' +
+
+      '<div class="sechead"><h2>Your six</h2><span class="rule"></span></div>' +
+      '<div class="xi">' + xiRows + '</div>' +
+      '<p class="note" style="margin-top:14px">' +
+        (GAME.mode === 'daily' ? 'Daily draft &middot; ' + esc(GAME.seedKey) : 'Free play') +
+      '</p>' +
+    '</div>' +
+    '<div class="dock">' +
+      '<button class="btn btn--primary" data-act="share">Copy result</button>' +
+      '<div class="btn--row" style="margin-top:8px">' +
+        '<button class="btn btn--ghost" data-act="new-free">Play again</button>' +
+        '<button class="btn btn--ghost" data-act="home">Home</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+
+/* ============================================================================
+   RENDER + INTERACTION
+   ============================================================================ */
+function render(){
+  const root = ROOT();
+  const scroll = root.querySelector('.stage');
+  const keepScroll = scroll ? scroll.scrollTop : 0;
+  const sameScreen = root.dataset.screen === GAME.screen;
+
+  root.dataset.screen = GAME.screen;
+  root.innerHTML =
+    GAME.screen === 'title'   ? viewTitle() :
+    GAME.screen === 'draft'   ? viewDraft() :
+                                viewResults();
+
+  if(sameScreen){
+    const s = root.querySelector('.stage');
+    if(s) s.scrollTop = keepScroll;
+  }
+
+  // Meters sweep in once laid out.
+  requestAnimationFrame(() => {
+    root.querySelectorAll('.mfill').forEach(el => { el.style.width = el.dataset.w + '%'; });
+  });
+
+  GAME.justFilled = null;
+}
+
+/* ---- The slot machine ---------------------------------------------------- */
+const SPIN_MS = { club: 1500, era: 1850 };
+
+function spinFiller(kind, n){
+  const src = kind === 'club' ? POOL.clubs : CONFIG.ERAS;
+  const out = [];
+  // Cosmetic only — deliberately NOT drawn from the game's seeded stream.
+  for(let i=0;i<n;i++) out.push(src[Math.floor(Math.random()*src.length)]);
+  return out;
+}
+
+function runReel(reelId, kind, target, duration){
+  const reel = document.getElementById(reelId);
+  if(!reel) return;
+  const track = reel.querySelector('.reel-track');
+  const items = spinFiller(kind, 12).concat([target]);
+  track.innerHTML = items.map(v => reelItemHTML(kind, v)).join('');
+  const first = track.firstElementChild;
+  const h = (first && first.offsetHeight) || 104;
+  const land = items.length - 1;
+
+  track.style.transition = 'none';
+  track.style.transform = 'translateY(0px)';
+  void track.offsetHeight;                       // force reflow so the reset sticks
+  const ms = REDUCED ? 1 : duration;
+  track.style.transition = 'transform ' + ms + 'ms cubic-bezier(.12,.72,.18,1)';
+  track.style.transform = 'translateY(' + (-land * h) + 'px)';
+}
+
+function doSpin(kind){
+  if(GAME.phase === 'spinning') return;
+
+  let cell, spinClub = true, spinEra = true;
+  if(kind === 'club'){
+    if(!GAME.skips.club) return;
+    cell = respinClub();
+    if(!cell){ toast('No other club from that era is left to draft.'); return; }
+    GAME.skips.club--; spinEra = false;
+  }else if(kind === 'era'){
+    if(!GAME.skips.era) return;
+    cell = respinEra();
+    if(!cell){ toast('No other era at that club is left to draft.'); return; }
+    GAME.skips.era--; spinClub = false;
+  }else{
+    cell = spinCell();
+  }
+
+  GAME.cell = cell;
+  GAME.offered = offerFrom(cell);
+  GAME.phase = 'spinning';
+  render();
+
+  const dur = Math.max(SPIN_MS.club, SPIN_MS.era);
+  if(spinClub) runReel('reel-club', 'club', cell.club, SPIN_MS.club);
+  if(spinEra)  runReel('reel-era',  'era',  cell.era,  SPIN_MS.era);
+  SFX.reelTicks(spinClub && spinEra ? dur : (spinClub ? SPIN_MS.club : SPIN_MS.era));
+
+  const wait = REDUCED ? 30 : (spinClub && spinEra ? dur : (spinClub ? SPIN_MS.club : SPIN_MS.era)) + 120;
+  setTimeout(() => {
+    GAME.phase = 'picking';
+    SFX.detent();
+    render();
+  }, wait);
+}
+
+/* ---- Share --------------------------------------------------------------- */
+function shareText(){
+  const r = GAME.result, v = verdictFor(r);
+  const rows = [];
+  for(let i=0;i<r.results.length;i+=10){
+    rows.push(r.results.slice(i, i+10)
+      .map(c => c === 'W' ? '🟩' : c === 'D' ? '🟨' : '🟥').join(''));
+  }
+  const six = CONFIG.FORMATION
+    .map(s => GAME.lineup[s.id] ? GAME.lineup[s.id].name : null)
+    .filter(Boolean).join(' · ');
+  return [
+    '38-0 ⚽ ' + (GAME.mode === 'daily' ? GAME.seedKey : 'Free play'),
+    v.title + ' — ' + r.wins + 'W ' + r.draws + 'D ' + r.losses + 'L · ' + pointsFrom(r) + ' pts',
+    '',
+    rows.join('\n'),
+    '',
+    six,
+  ].join('\n');
+}
+
+function copyShare(){
+  const text = shareText();
+  const done = ok => toast(ok ? 'Result copied to clipboard' : 'Could not copy — select the text manually');
+
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(() => done(true), () => legacyCopy(text, done));
+      return;
+    }
+  }catch(e){ /* fall through */ }
+  legacyCopy(text, done);
+}
+
+function legacyCopy(text, done){
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly','');
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0';
+    document.body.appendChild(ta);
+    ta.select(); ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    done(ok);
+  }catch(e){ done(false); }
+}
+
+/* ---- Events -------------------------------------------------------------- */
+function onAction(e){
+  const t = e.target.closest('[data-act]');
+  if(!t || t.disabled) return;
+  const act = t.dataset.act;
+
+  switch(act){
+    case 'new-daily': SFX.init(); newGame('daily'); render(); break;
+    case 'new-free':  SFX.init(); newGame('free');  render(); break;
+    case 'home':      GAME.screen = 'title'; render(); break;
+
+    case 'quit':
+      if(GAME.picks.length === 0 || confirm('Abandon this draft?')){ GAME.screen = 'title'; render(); }
+      break;
+
+    case 'sound':
+      SFX.on = !SFX.on;
+      if(SFX.on){ SFX.init(); SFX.detent(); }
+      render();
+      break;
+
+    case 'spin':      SFX.init(); doSpin(null);   break;
+    case 'skip-club': SFX.init(); doSpin('club'); break;
+    case 'skip-era':  SFX.init(); doSpin('era');  break;
+
+    case 'choose': {
+      const p = GAME.offered[Number(t.dataset.i)];
+      if(p){ GAME.pending = p; SFX.pick(); render(); }
+      break;
+    }
+    case 'cancel': GAME.pending = null; render(); break;
+
+    case 'assign': {
+      const ok = assignPending(t.dataset.slot);
+      if(ok){
+        if(GAME.screen === 'results'){
+          const perfect = GAME.result.wins === CONFIG.SEASON.MATCHES;
+          SFX.fanfare(perfect);
+          if(!perfect && GAME.result.losses > 8) SFX.thud();
+        }else{
+          SFX.detent();
+        }
+        render();
+      }
+      break;
+    }
+
+    case 'share': copyShare(); break;
+  }
+}
+
+function onKey(e){
+  if(e.key === 'Escape' && GAME.pending){ GAME.pending = null; render(); }
+  if(e.key === ' ' && GAME.screen === 'draft' && GAME.phase === 'idle' && e.target === document.body){
+    e.preventDefault(); doSpin(null);
+  }
+}
+
+
 /* ============================================================================
    7. TESTS — `?test=1`. console.assert is the contract; the on-screen report
    is a convenience. These are the correctness oracle for every milestone.
    ============================================================================ */
-const T = { results:[], notes:[] };
+const T = { results:[], notes:[], running:false };
 
 function check(name, condition, note){
   const pass = !!condition;
@@ -1764,10 +3045,12 @@ function testPRNG(){
 
 function runTests(){
   T.results.length = 0; T.notes.length = 0;
+  T.running = true;
   testPRNG();
   if(typeof testData === 'function') testData();
   if(typeof testSim  === 'function') testSim();
   if(typeof testDraft === 'function') testDraft();
+  T.running = false;
   if(typeof document !== 'undefined') renderTestReport();
   const failed = T.results.filter(r=>!r.pass).length;
   console.log('[38-0] ' + (T.results.length - failed) + '/' + T.results.length + ' checks passed.');
@@ -1808,13 +3091,20 @@ function boot(){
   const params = new URLSearchParams(location.search);
   if(params.get('test') === '1'){ runTests(); return; }
 
-  // Milestone 1 scaffold. Replaced by the real shell in milestone 4.
-  document.getElementById('app').innerHTML =
-    '<div class="shell"><div class="stage boot">' +
-      '<h1 class="display">38&#8209;0</h1>' +
-      '<p class="tag">Draft a truly invincible Premier League team.</p>' +
-      '<p class="eyebrow">Scaffold online &middot; append <code>?test=1</code> to run the harness</p>' +
-    '</div></div>';
+  // Sound preference is a convenience, never a hard dependency.
+  try{
+    const pref = localStorage.getItem(CONFIG.STORAGE_KEY + '.sound');
+    if(pref !== null) SFX.on = pref === '1';
+  }catch(e){}
+
+  ROOT().addEventListener('click', onAction);
+  document.addEventListener('keydown', onKey);
+  ROOT().addEventListener('click', () => {
+    try{ localStorage.setItem(CONFIG.STORAGE_KEY + '.sound', SFX.on ? '1' : '0'); }catch(e){}
+  });
+
+  GAME.screen = 'title';
+  render();
 }
 
 if(typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', boot);

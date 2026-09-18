@@ -9,7 +9,7 @@ Build log for the single-file Premier League team-builder. See `SPEC.md` for the
 | 1. Scaffold + CONFIG + seeded PRNG + PRNG tests | **done** |
 | 2. Data model + club/era pools | **done** |
 | 3. `simulateSeason` + tests + tuning | **done** |
-| 4. Draft loop + slot machine + spins/skips | not started |
+| 4. Draft loop + slot machine + spins/skips | **done** |
 | 5. UI polish, results, share, localStorage best | not started |
 | 6. Final pass | not started |
 
@@ -63,9 +63,25 @@ The median random-but-sensible team lands at 22 wins, inside the 18-24 target
 band. A well-drafted side is usually agonisingly close — median 36, unbeaten 32%
 of the time — and goes the full 38-0 about once in nine runs.
 
+- Draft state machine: six rounds, one pick per slot, no club/era cell drafted
+  from twice and no player drafted twice.
+- Two-reel slot machine with staggered detents. A club-skip re-spins only the
+  club reel and holds the era; an era-skip does the reverse. One of each per
+  game.
+- Daily seed from the UTC date drives every draw in order, so the same date
+  gives the same opening spin and the same offered pool. Free play reseeds from
+  the clock.
+- Procedural club crests (inline SVG, no images), synthesised reel/pick/fanfare
+  sound (WebAudio, no files), a slot-assignment sheet, and a sticky lineup strip.
+- Results screen: verdict tiers, W/D/L, points, a 38-square season grid, phase
+  meters with the gate threshold marked, chemistry readout and the drafted six.
+- Clipboard share with an emoji season grid and an `execCommand` fallback.
+- Personal best in `localStorage`, every access wrapped in `try/catch`.
+- 10 draft self-checks, including daily-seed reproducibility.
+
 ## Stubbed
 
-- Everything from milestone 4 onward.
+- Everything from milestone 5 onward.
 
 ## Notes
 
