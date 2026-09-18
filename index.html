@@ -424,6 +424,734 @@ function rngShuffle(rnd, arr){
 const clamp = (v,lo,hi) => v < lo ? lo : v > hi ? hi : v;
 
 
+
+/* ============================================================================
+   3. DATA — CLUBS[club][era] -> players
+   ----------------------------------------------------------------------------
+   DATA HONESTY
+   Every player below is a real Premier League player, placed at a club and in
+   a decade they actually played there. Where a player spans two decades at the
+   same club (Rooney at United, Salah at Liverpool) they appear in both — that
+   is correct, not a duplicate.
+
+   The five 0-100 numbers are GAME RATINGS — my best judgment of that player,
+   in that shirt, in that era. They are not claimed real-world statistics and
+   no exact goal or assist totals are asserted anywhere in this file.
+
+       attack      goal threat and finishing
+       creativity  passing, vision, chance creation, dribbling
+       defense     defensive work and positional discipline
+       physical    pace, strength, stamina, aerial presence
+       gk          shot-stopping and handling (near-zero for outfielders)
+
+   Anything I was not confident about was left out rather than guessed. Pools
+   I want a human to audit carry a `// REVIEW:` comment.
+   ============================================================================ */
+
+/** Compact constructor. Era and club are stamped on by buildPools(). */
+function P(name, position, attack, creativity, defense, physical, gk){
+  return { name, position, ratings:{ attack, creativity, defense, physical, gk } };
+}
+
+/** Club identity — used for the crest, the reel and the share card. */
+const CLUB_META = {
+  'Arsenal':        { code:'ARS', primary:'#EF0107', secondary:'#F4F6FA', nick:'The Arsenal' },
+  'Man Utd':        { code:'MUN', primary:'#DA291C', secondary:'#FBE122', nick:'United' },
+  'Chelsea':        { code:'CHE', primary:'#2B6BD4', secondary:'#F4F6FA', nick:'The Blues' },
+  'Liverpool':      { code:'LIV', primary:'#C8102E', secondary:'#00B2A9', nick:'The Reds' },
+  'Man City':       { code:'MCI', primary:'#6CABDD', secondary:'#1C2C5B', nick:'City' },
+  'Tottenham':      { code:'TOT', primary:'#F4F6FA', secondary:'#132257', nick:'Spurs' },
+  'Newcastle':      { code:'NEW', primary:'#E8EAF0', secondary:'#1A1A1A', nick:'The Magpies' },
+  'Everton':        { code:'EVE', primary:'#2F6BE0', secondary:'#F4F6FA', nick:'The Toffees' },
+  'Leicester':      { code:'LEI', primary:'#2F5BD8', secondary:'#FDBE11', nick:'The Foxes' },
+  'Aston Villa':    { code:'AVL', primary:'#95BFE5', secondary:'#670E36', nick:'Villa' },
+  'West Ham':       { code:'WHU', primary:'#A33A55', secondary:'#1BB1E7', nick:'The Hammers' },
+};
+
+const CLUBS = {
+
+/* ---------------------------------------------------------------- ARSENAL -- */
+'Arsenal': {
+  '2000s': [
+    //                            name                 pos   att  cre  def  phy   gk
+    P('Thierry Henry',            'FWD',  96,  88,  28,  90,   6),
+    P('Dennis Bergkamp',          'FWD',  85,  95,  30,  66,   6),
+    P('Robin van Persie',         'FWD',  87,  83,  30,  74,   6),
+    P('Patrick Vieira',           'MID',  64,  81,  87,  94,   6),
+    P('Robert Pires',             'MID',  79,  91,  45,  70,   6),
+    P('Freddie Ljungberg',        'MID',  76,  77,  57,  81,   6),
+    P('Cesc Fabregas',            'MID',  70,  91,  53,  66,   6),
+    P('Gilberto Silva',           'MID',  47,  69,  83,  81,   6),
+    P('Ashley Cole',              'DEF',  52,  67,  87,  87,   6),
+    P('Sol Campbell',             'DEF',  34,  43,  91,  93,   6),
+    P('Kolo Toure',               'DEF',  32,  49,  84,  89,   6),
+    P('Lauren',                   'DEF',  38,  56,  80,  82,   6),
+    P('Jens Lehmann',             'GK',    6,  45,  38,  78,  86),
+    P('David Seaman',             'GK',    5,  41,  36,  73,  85),
+  ],
+  '2010s': [
+    P('Alexis Sanchez',           'FWD',  88,  86,  44,  86,   6),
+    P('Pierre-Emerick Aubameyang','FWD',  90,  74,  26,  90,   6),
+    P('Robin van Persie',         'FWD',  91,  85,  30,  74,   6),
+    P('Olivier Giroud',           'FWD',  80,  74,  40,  84,   6),
+    P('Theo Walcott',             'FWD',  78,  71,  30,  90,   6),
+    P('Mesut Ozil',               'MID',  70,  94,  36,  60,   6),
+    P('Santi Cazorla',            'MID',  72,  89,  50,  62,   6),
+    P('Aaron Ramsey',             'MID',  74,  80,  62,  78,   6),
+    P('Jack Wilshere',            'MID',  62,  81,  58,  66,   6),
+    P('Laurent Koscielny',        'DEF',  36,  52,  86,  83,   6),
+    P('Hector Bellerin',          'DEF',  44,  64,  74,  90,   6),
+    P('Nacho Monreal',            'DEF',  40,  60,  79,  74,   6),
+    P('Petr Cech',                'GK',    5,  47,  40,  80,  85),
+    P('Wojciech Szczesny',        'GK',    5,  44,  36,  76,  80),
+  ],
+  '2020s': [
+    P('Bukayo Saka',              'FWD',  85,  88,  46,  84,   6),
+    P('Gabriel Martinelli',       'FWD',  80,  76,  42,  89,   6),
+    P('Kai Havertz',              'FWD',  80,  78,  46,  84,   6),
+    P('Pierre-Emerick Aubameyang','FWD',  84,  70,  26,  84,   6),
+    P('Martin Odegaard',          'MID',  78,  92,  52,  66,   6),
+    P('Declan Rice',              'MID',  66,  80,  88,  88,   6),
+    P('Thomas Partey',            'MID',  60,  78,  82,  84,   6),
+    P('Granit Xhaka',             'MID',  64,  80,  70,  76,   6),
+    P('William Saliba',           'DEF',  30,  58,  90,  90,   6),
+    P('Gabriel Magalhaes',        'DEF',  42,  50,  88,  90,   6),
+    P('Ben White',                'DEF',  40,  66,  82,  80,   6),
+    P('Oleksandr Zinchenko',      'DEF',  44,  78,  70,  70,   6),
+    P('David Raya',               'GK',    5,  56,  40,  76,  85),
+    P('Aaron Ramsdale',           'GK',    5,  52,  38,  76,  82),
+  ],
+},
+
+/* --------------------------------------------------------------- MAN UTD -- */
+'Man Utd': {
+  '2000s': [
+    P('Cristiano Ronaldo',        'FWD',  93,  90,  30,  94,   6),
+    P('Wayne Rooney',             'FWD',  90,  87,  50,  88,   6),
+    P('Ruud van Nistelrooy',      'FWD',  94,  70,  26,  78,   6),
+    P('Carlos Tevez',             'FWD',  84,  80,  44,  84,   6),
+    P('Roy Keane',                'MID',  62,  80,  88,  90,   6),
+    P('Paul Scholes',             'MID',  76,  92,  60,  66,   6),
+    P('Ryan Giggs',               'MID',  76,  90,  46,  82,   6),
+    P('Michael Carrick',          'MID',  54,  82,  74,  72,   6),
+    P('Rio Ferdinand',            'DEF',  30,  66,  92,  90,   6),
+    P('Nemanja Vidic',            'DEF',  40,  40,  93,  94,   6),
+    P('Patrice Evra',             'DEF',  44,  66,  82,  88,   6),
+    P('Gary Neville',             'DEF',  36,  62,  80,  76,   6),
+    P('Edwin van der Sar',        'GK',    5,  56,  40,  78,  89),
+    P('Fabien Barthez',           'GK',    5,  50,  36,  76,  80),
+  ],
+  '2010s': [
+    P('Robin van Persie',         'FWD',  92,  84,  30,  74,   6),
+    P('Zlatan Ibrahimovic',       'FWD',  88,  82,  36,  86,   6),
+    P('Wayne Rooney',             'FWD',  86,  86,  50,  80,   6),
+    P('Marcus Rashford',          'FWD',  82,  74,  36,  92,   6),
+    P('Anthony Martial',          'FWD',  80,  78,  30,  86,   6),
+    P('Paul Pogba',               'MID',  76,  88,  64,  88,   6),
+    P('Ander Herrera',            'MID',  64,  80,  76,  76,   6),
+    P('Nemanja Matic',            'MID',  50,  72,  82,  84,   6),
+    P('Juan Mata',                'MID',  70,  86,  40,  58,   6),
+    P('Michael Carrick',          'MID',  52,  82,  74,  70,   6),
+    P('Nemanja Vidic',            'DEF',  40,  40,  90,  90,   6),
+    P('Rio Ferdinand',            'DEF',  28,  64,  88,  84,   6),
+    P('Luke Shaw',                'DEF',  44,  70,  78,  82,   6),
+    P('David de Gea',             'GK',    5,  48,  38,  74,  92),
+  ],
+  '2020s': [
+    P('Marcus Rashford',          'FWD',  82,  74,  36,  90,   6),
+    P('Cristiano Ronaldo',        'FWD',  87,  72,  24,  76,   6),
+    P('Alejandro Garnacho',       'FWD',  76,  74,  32,  88,   6),
+    P('Rasmus Hojlund',           'FWD',  74,  62,  30,  86,   6),
+    P('Bruno Fernandes',          'MID',  84,  93,  58,  78,   6),
+    P('Casemiro',                 'MID',  62,  76,  84,  82,   6),
+    P('Christian Eriksen',        'MID',  64,  87,  52,  56,   6),
+    P('Kobbie Mainoo',            'MID',  62,  80,  70,  74,   6),
+    P('Lisandro Martinez',        'DEF',  34,  70,  86,  80,   6),
+    P('Raphael Varane',           'DEF',  30,  60,  87,  84,   6),
+    P('Harry Maguire',            'DEF',  42,  54,  79,  86,   6),
+    P('Diogo Dalot',              'DEF',  46,  66,  74,  84,   6),
+    P('Andre Onana',              'GK',    5,  66,  40,  78,  81),
+    P('David de Gea',             'GK',    5,  46,  38,  72,  88),
+  ],
+},
+
+/* --------------------------------------------------------------- CHELSEA -- */
+'Chelsea': {
+  '2000s': [
+    P('Didier Drogba',            'FWD',  93,  80,  40,  94,   6),
+    P('Gianfranco Zola',          'FWD',  84,  93,  28,  60,   6),
+    P('Arjen Robben',             'FWD',  84,  88,  32,  90,   6),
+    P('Nicolas Anelka',           'FWD',  86,  76,  30,  84,   6),
+    P('Frank Lampard',            'MID',  88,  86,  62,  80,   6),
+    P('Claude Makelele',          'MID',  38,  74,  90,  80,   6),
+    P('Michael Essien',           'MID',  70,  76,  86,  92,   6),
+    P('Joe Cole',                 'MID',  74,  86,  48,  72,   6),
+    P('Florent Malouda',          'MID',  74,  80,  46,  80,   6),
+    P('John Terry',               'DEF',  44,  56,  93,  88,   6),
+    P('Ricardo Carvalho',         'DEF',  28,  58,  89,  82,   6),
+    P('William Gallas',           'DEF',  32,  56,  85,  86,   6),
+    P('Marcel Desailly',          'DEF',  30,  54,  87,  88,   6),
+    P('Petr Cech',                'GK',    5,  50,  42,  84,  92),
+  ],
+  '2010s': [
+    P('Eden Hazard',              'FWD',  88,  95,  36,  86,   6),
+    P('Diego Costa',              'FWD',  89,  72,  44,  90,   6),
+    P('Didier Drogba',            'FWD',  89,  78,  40,  88,   6),
+    P('Olivier Giroud',           'FWD',  79,  74,  40,  82,   6),
+    P('N\'Golo Kante',            'MID',  50,  76,  93,  90,   6),
+    P('Cesc Fabregas',            'MID',  72,  93,  48,  62,   6),
+    P('Frank Lampard',            'MID',  84,  84,  60,  72,   6),
+    P('Willian',                  'MID',  74,  84,  52,  82,   6),
+    P('Oscar',                    'MID',  70,  86,  50,  64,   6),
+    P('Juan Mata',                'MID',  72,  88,  40,  58,   6),
+    P('Cesar Azpilicueta',        'DEF',  40,  68,  85,  82,   6),
+    P('Gary Cahill',              'DEF',  42,  48,  83,  84,   6),
+    P('David Luiz',               'DEF',  46,  70,  78,  84,   6),
+    P('Branislav Ivanovic',       'DEF',  50,  54,  84,  88,   6),
+    P('Thibaut Courtois',         'GK',    5,  50,  40,  84,  90),
+  ],
+  '2020s': [
+    P('Cole Palmer',              'FWD',  88,  90,  40,  72,   6),
+    P('Kai Havertz',              'FWD',  80,  80,  44,  84,   6),
+    P('Raheem Sterling',          'FWD',  80,  80,  34,  86,   6),
+    P('Nicolas Jackson',          'FWD',  76,  66,  34,  88,   6),
+    P('Enzo Fernandez',           'MID',  70,  86,  68,  76,   6),
+    P('Moises Caicedo',           'MID',  56,  76,  87,  86,   6),
+    P('Mason Mount',              'MID',  76,  84,  62,  76,   6),
+    P('N\'Golo Kante',            'MID',  50,  74,  90,  84,   6),
+    P('Thiago Silva',             'DEF',  32,  70,  89,  74,   6),
+    P('Reece James',              'DEF',  58,  80,  82,  86,   6),
+    P('Antonio Rudiger',          'DEF',  36,  58,  87,  90,   6),
+    P('Ben Chilwell',             'DEF',  50,  72,  74,  80,   6),
+    P('Edouard Mendy',            'GK',    5,  48,  40,  82,  86),
+    P('Robert Sanchez',           'GK',    5,  54,  38,  80,  78),
+  ],
+},
+
+/* ------------------------------------------------------------- LIVERPOOL -- */
+'Liverpool': {
+  '2000s': [
+    P('Fernando Torres',          'FWD',  93,  80,  26,  92,   6),
+    P('Michael Owen',             'FWD',  91,  72,  24,  92,   6),
+    P('Robbie Fowler',            'FWD',  89,  74,  26,  76,   6),
+    P('Dirk Kuyt',                'FWD',  76,  74,  66,  84,   6),
+    P('Steven Gerrard',           'MID',  88,  92,  76,  90,   6),
+    P('Xabi Alonso',              'MID',  66,  92,  74,  72,   6),
+    P('Javier Mascherano',        'MID',  38,  70,  89,  86,   6),
+    P('Luis Garcia',              'MID',  78,  80,  38,  70,   6),
+    P('Dietmar Hamann',           'MID',  44,  74,  82,  76,   6),
+    P('Jamie Carragher',          'DEF',  26,  52,  88,  82,   6),
+    P('Sami Hyypia',              'DEF',  38,  50,  88,  86,   6),
+    P('John Arne Riise',          'DEF',  52,  62,  76,  86,   6),
+    P('Pepe Reina',               'GK',    5,  62,  40,  76,  86),
+    P('Jerzy Dudek',              'GK',    5,  44,  36,  74,  78),
+  ],
+  '2010s': [
+    P('Mohamed Salah',            'FWD',  94,  86,  38,  92,   6),
+    P('Sadio Mane',               'FWD',  89,  82,  44,  93,   6),
+    P('Luis Suarez',              'FWD',  93,  90,  36,  86,   6),
+    P('Roberto Firmino',          'FWD',  80,  88,  62,  82,   6),
+    P('Daniel Sturridge',         'FWD',  84,  76,  26,  84,   6),
+    P('Philippe Coutinho',        'MID',  80,  91,  40,  72,   6),
+    P('Steven Gerrard',           'MID',  84,  90,  72,  80,   6),
+    P('Jordan Henderson',         'MID',  60,  80,  76,  86,   6),
+    P('Georginio Wijnaldum',      'MID',  62,  80,  74,  82,   6),
+    P('James Milner',             'MID',  62,  80,  74,  80,   6),
+    P('Virgil van Dijk',          'DEF',  44,  68,  94,  94,   6),
+    P('Trent Alexander-Arnold',   'DEF',  56,  92,  68,  78,   6),
+    P('Andy Robertson',           'DEF',  50,  84,  80,  90,   6),
+    P('Alisson',                  'GK',    5,  62,  42,  82,  92),
+  ],
+  '2020s': [
+    P('Mohamed Salah',            'FWD',  95,  88,  38,  88,   6),
+    P('Luis Diaz',                'FWD',  84,  82,  44,  90,   6),
+    P('Darwin Nunez',             'FWD',  80,  66,  36,  92,   6),
+    P('Diogo Jota',               'FWD',  85,  78,  44,  84,   6),
+    P('Cody Gakpo',               'FWD',  79,  78,  38,  82,   6),
+    P('Alexis Mac Allister',      'MID',  70,  88,  72,  74,   6),
+    P('Dominik Szoboszlai',       'MID',  74,  84,  66,  86,   6),
+    P('Thiago Alcantara',         'MID',  60,  92,  66,  62,   6),
+    P('Fabinho',                  'MID',  48,  74,  87,  84,   6),
+    P('Ryan Gravenberch',         'MID',  62,  82,  74,  84,   6),
+    P('Virgil van Dijk',          'DEF',  44,  70,  93,  90,   6),
+    P('Trent Alexander-Arnold',   'DEF',  58,  94,  66,  76,   6),
+    P('Andy Robertson',           'DEF',  48,  82,  78,  86,   6),
+    P('Ibrahima Konate',          'DEF',  32,  54,  84,  92,   6),
+    P('Alisson',                  'GK',    5,  62,  42,  82,  93),
+  ],
+},
+
+/* -------------------------------------------------------------- MAN CITY -- */
+'Man City': {
+  // REVIEW: pre-takeover City (2000-2008) churned squads constantly and had two
+  // relegation-adjacent seasons. This pool is the names I am confident about;
+  // it is deliberately short rather than padded with half-remembered squad men.
+  '2000s': [
+    P('Robinho',                  'FWD',  84,  86,  24,  88,   6),
+    P('Nicolas Anelka',           'FWD',  85,  76,  28,  86,   6),
+    P('Carlos Tevez',             'FWD',  85,  80,  44,  84,   6),
+    P('Shaun Wright-Phillips',    'MID',  72,  80,  44,  92,   6),
+    P('Stephen Ireland',          'MID',  70,  80,  52,  74,   6),
+    P('Vincent Kompany',          'DEF',  36,  62,  86,  90,   6),
+    P('Richard Dunne',            'DEF',  28,  38,  80,  86,   6),
+    P('Micah Richards',           'DEF',  42,  56,  76,  92,   6),
+    P('Sylvain Distin',           'DEF',  26,  44,  78,  86,   6),
+    P('Joe Hart',                 'GK',    5,  44,  36,  80,  78),
+  ],
+  '2010s': [
+    P('Sergio Aguero',            'FWD',  96,  86,  26,  88,   6),
+    P('Raheem Sterling',          'FWD',  86,  82,  36,  90,   6),
+    P('Leroy Sane',               'FWD',  84,  84,  30,  93,   6),
+    P('Riyad Mahrez',             'FWD',  82,  90,  32,  78,   6),
+    P('Kevin De Bruyne',          'MID',  86,  97,  62,  84,   6),
+    P('David Silva',              'MID',  78,  95,  50,  66,   6),
+    P('Yaya Toure',               'MID',  82,  86,  70,  92,   6),
+    P('Fernandinho',              'MID',  56,  78,  87,  84,   6),
+    P('Bernardo Silva',           'MID',  76,  90,  66,  76,   6),
+    P('Ilkay Gundogan',           'MID',  72,  88,  62,  70,   6),
+    P('Vincent Kompany',          'DEF',  44,  64,  91,  90,   6),
+    P('Kyle Walker',              'DEF',  46,  68,  80,  95,   6),
+    P('Aymeric Laporte',          'DEF',  36,  72,  87,  84,   6),
+    P('Pablo Zabaleta',           'DEF',  42,  62,  81,  86,   6),
+    P('Ederson',                  'GK',    6,  80,  42,  80,  89),
+    P('Joe Hart',                 'GK',    5,  46,  38,  80,  82),
+  ],
+  '2020s': [
+    P('Erling Haaland',           'FWD',  98,  62,  26,  94,   6),
+    P('Julian Alvarez',           'FWD',  82,  80,  50,  84,   6),
+    P('Jeremy Doku',              'FWD',  74,  86,  32,  94,   6),
+    P('Riyad Mahrez',             'FWD',  82,  88,  32,  74,   6),
+    P('Kevin De Bruyne',          'MID',  86,  97,  58,  78,   6),
+    P('Rodri',                    'MID',  62,  88,  92,  84,   6),
+    P('Phil Foden',               'MID',  86,  90,  50,  80,   6),
+    P('Bernardo Silva',           'MID',  76,  91,  68,  76,   6),
+    P('Jack Grealish',            'MID',  70,  86,  44,  76,   6),
+    P('Ilkay Gundogan',           'MID',  76,  88,  62,  68,   6),
+    P('Ruben Dias',               'DEF',  32,  62,  93,  88,   6),
+    P('Josko Gvardiol',           'DEF',  50,  64,  85,  88,   6),
+    P('Kyle Walker',              'DEF',  42,  64,  79,  92,   6),
+    P('Joao Cancelo',             'DEF',  52,  84,  72,  80,   6),
+    P('Nathan Ake',               'DEF',  34,  58,  82,  82,   6),
+    P('Ederson',                  'GK',    6,  82,  42,  80,  88),
+  ],
+},
+
+/* ------------------------------------------------------------- TOTTENHAM -- */
+'Tottenham': {
+  '2000s': [
+    P('Dimitar Berbatov',         'FWD',  88,  88,  28,  74,   6),
+    P('Robbie Keane',             'FWD',  86,  82,  34,  78,   6),
+    P('Jermain Defoe',            'FWD',  85,  68,  24,  82,   6),
+    P('Darren Bent',              'FWD',  80,  62,  24,  82,   6),
+    P('Luka Modric',              'MID',  66,  92,  54,  64,   6),
+    P('Aaron Lennon',             'MID',  68,  78,  44,  94,   6),
+    P('Michael Carrick',          'MID',  52,  82,  72,  70,   6),
+    P('Jermaine Jenas',           'MID',  64,  76,  62,  80,   6),
+    P('Ledley King',              'DEF',  28,  62,  91,  88,   6),
+    P('Michael Dawson',           'DEF',  36,  46,  80,  84,   6),
+    P('Gareth Bale',              'DEF',  56,  74,  68,  92,   6),   // a left-back at this point
+    P('Benoit Assou-Ekotto',      'DEF',  38,  58,  74,  82,   6),
+    P('Paul Robinson',            'GK',    5,  50,  36,  76,  80),
+  ],
+  '2010s': [
+    P('Harry Kane',               'FWD',  95,  84,  36,  82,   6),
+    P('Son Heung-min',            'FWD',  89,  82,  42,  93,   6),
+    P('Gareth Bale',              'FWD',  90,  88,  40,  96,   6),
+    P('Christian Eriksen',        'MID',  74,  93,  46,  62,   6),
+    P('Dele Alli',                'MID',  82,  84,  52,  78,   6),
+    P('Mousa Dembele',            'MID',  58,  86,  74,  92,   6),
+    P('Luka Modric',              'MID',  68,  93,  58,  68,   6),
+    P('Moussa Sissoko',           'MID',  50,  68,  76,  92,   6),
+    P('Erik Lamela',              'MID',  70,  80,  52,  74,   6),
+    P('Jan Vertonghen',           'DEF',  38,  68,  86,  82,   6),
+    P('Toby Alderweireld',        'DEF',  32,  70,  88,  80,   6),
+    P('Kyle Walker',              'DEF',  44,  64,  76,  94,   6),
+    P('Danny Rose',               'DEF',  46,  66,  76,  88,   6),
+    P('Kieran Trippier',          'DEF',  44,  84,  72,  76,   6),
+    P('Hugo Lloris',              'GK',    5,  52,  40,  80,  88),
+  ],
+  '2020s': [
+    P('Son Heung-min',            'FWD',  90,  82,  40,  90,   6),
+    P('Harry Kane',               'FWD',  96,  88,  36,  80,   6),
+    P('Richarlison',              'FWD',  76,  70,  44,  86,   6),
+    P('Brennan Johnson',          'FWD',  74,  68,  36,  88,   6),
+    P('James Maddison',           'MID',  78,  90,  44,  66,   6),
+    P('Dejan Kulusevski',         'MID',  76,  84,  48,  84,   6),
+    P('Rodrigo Bentancur',        'MID',  62,  80,  76,  78,   6),
+    P('Yves Bissouma',            'MID',  52,  76,  82,  84,   6),
+    P('Pape Matar Sarr',          'MID',  60,  76,  74,  84,   6),
+    P('Cristian Romero',          'DEF',  40,  62,  88,  88,   6),
+    P('Micky van de Ven',         'DEF',  30,  58,  84,  95,   6),
+    P('Pedro Porro',              'DEF',  54,  82,  68,  82,   6),
+    P('Destiny Udogie',           'DEF',  46,  70,  74,  86,   6),
+    P('Guglielmo Vicario',        'GK',    5,  56,  38,  78,  83),
+    P('Hugo Lloris',              'GK',    5,  50,  38,  76,  82),
+  ],
+},
+
+/* ------------------------------------------------------------- NEWCASTLE -- */
+'Newcastle': {
+  '2000s': [
+    P('Alan Shearer',             'FWD',  94,  70,  36,  86,   6),
+    P('Michael Owen',             'FWD',  86,  70,  24,  84,   6),
+    P('Craig Bellamy',            'FWD',  82,  76,  32,  92,   6),
+    P('Obafemi Martins',          'FWD',  80,  66,  26,  94,   6),
+    P('Laurent Robert',           'MID',  74,  84,  38,  74,   6),
+    P('Kieron Dyer',              'MID',  70,  80,  50,  92,   6),
+    P('Nolberto Solano',          'MID',  66,  84,  48,  70,   6),
+    P('Gary Speed',               'MID',  62,  76,  70,  80,   6),
+    P('Jonathan Woodgate',        'DEF',  30,  54,  86,  82,   6),
+    P('Titus Bramble',            'DEF',  28,  40,  70,  84,   6),
+    P('Steven Taylor',            'DEF',  30,  44,  74,  80,   6),
+    P('Shay Given',               'GK',    5,  46,  36,  76,  86),
+  ],
+  '2010s': [
+    P('Papiss Cisse',             'FWD',  80,  62,  26,  84,   6),
+    P('Demba Ba',                 'FWD',  80,  66,  30,  86,   6),
+    P('Ayoze Perez',              'FWD',  74,  74,  36,  74,   6),
+    P('Salomon Rondon',           'FWD',  76,  70,  42,  86,   6),
+    P('Yohan Cabaye',             'MID',  72,  86,  64,  72,   6),
+    P('Hatem Ben Arfa',           'MID',  76,  88,  30,  76,   6),
+    P('Moussa Sissoko',           'MID',  54,  70,  74,  92,   6),
+    P('Jonjo Shelvey',            'MID',  60,  84,  56,  70,   6),
+    P('Fabricio Coloccini',       'DEF',  28,  56,  80,  78,   6),
+    P('Jamaal Lascelles',         'DEF',  34,  42,  76,  84,   6),
+    P('Tim Krul',                 'GK',    5,  46,  36,  76,  80),
+    P('Martin Dubravka',          'GK',    5,  46,  36,  76,  79),
+  ],
+  '2020s': [
+    P('Alexander Isak',           'FWD',  90,  80,  30,  90,   6),
+    P('Callum Wilson',            'FWD',  80,  68,  30,  80,   6),
+    P('Anthony Gordon',           'FWD',  78,  78,  46,  90,   6),
+    P('Allan Saint-Maximin',      'FWD',  70,  84,  28,  92,   6),
+    P('Bruno Guimaraes',          'MID',  72,  90,  78,  82,   6),
+    P('Sandro Tonali',            'MID',  66,  84,  80,  80,   6),
+    P('Joelinton',                'MID',  64,  74,  80,  92,   6),
+    P('Miguel Almiron',           'MID',  68,  72,  50,  90,   6),
+    P('Kieran Trippier',          'DEF',  46,  86,  72,  72,   6),
+    P('Sven Botman',              'DEF',  30,  56,  84,  86,   6),
+    P('Fabian Schar',             'DEF',  40,  70,  80,  80,   6),
+    P('Dan Burn',                 'DEF',  30,  44,  76,  86,   6),
+    P('Nick Pope',                'GK',    5,  44,  38,  82,  85),
+  ],
+},
+
+/* --------------------------------------------------------------- EVERTON -- */
+'Everton': {
+  '2000s': [
+    P('Wayne Rooney',             'FWD',  84,  82,  44,  86,   6),
+    P('Yakubu',                   'FWD',  82,  62,  26,  82,   6),
+    P('Louis Saha',               'FWD',  80,  70,  28,  84,   6),
+    P('Duncan Ferguson',          'FWD',  74,  54,  40,  88,   6),
+    P('Mikel Arteta',             'MID',  70,  88,  58,  66,   6),
+    P('Tim Cahill',               'MID',  80,  68,  62,  84,   6),
+    P('Steven Pienaar',           'MID',  66,  82,  50,  76,   6),
+    P('Thomas Gravesen',          'MID',  58,  74,  72,  82,   6),
+    P('Lee Carsley',              'MID',  44,  62,  76,  80,   6),
+    P('Joleon Lescott',           'DEF',  40,  48,  80,  86,   6),
+    P('Phil Jagielka',            'DEF',  32,  50,  82,  82,   6),
+    P('Leighton Baines',          'DEF',  48,  82,  76,  76,   6),
+    P('Joseph Yobo',              'DEF',  26,  46,  78,  84,   6),
+    P('Tim Howard',               'GK',    5,  48,  38,  80,  82),
+    P('Nigel Martyn',             'GK',    5,  44,  36,  74,  81),
+  ],
+  '2010s': [
+    P('Romelu Lukaku',            'FWD',  88,  70,  30,  92,   6),
+    P('Richarlison',              'FWD',  78,  72,  46,  86,   6),
+    P('Dominic Calvert-Lewin',    'FWD',  78,  60,  36,  88,   6),
+    P('Ross Barkley',             'MID',  72,  82,  50,  82,   6),
+    P('Gylfi Sigurdsson',         'MID',  76,  86,  44,  66,   6),
+    P('Idrissa Gueye',            'MID',  42,  70,  88,  86,   6),
+    P('Kevin Mirallas',           'MID',  72,  76,  38,  82,   6),
+    P('Marouane Fellaini',        'MID',  70,  70,  70,  90,   6),
+    P('Seamus Coleman',           'DEF',  46,  70,  78,  86,   6),
+    P('Leighton Baines',          'DEF',  48,  82,  76,  74,   6),
+    P('Michael Keane',            'DEF',  36,  46,  76,  84,   6),
+    P('Lucas Digne',              'DEF',  46,  80,  74,  78,   6),
+    P('Jordan Pickford',          'GK',    5,  62,  38,  76,  82),
+    P('Tim Howard',               'GK',    5,  48,  38,  78,  80),
+  ],
+  // REVIEW: 2020s Everton is the pool I am least sure of — relegation fights,
+  // a points deduction and very heavy squad churn. Names here are ones I am
+  // confident wore the shirt this decade; please audit before publishing.
+  '2020s': [
+    P('Dominic Calvert-Lewin',    'FWD',  80,  62,  36,  88,   6),
+    P('Richarlison',              'FWD',  78,  72,  46,  86,   6),
+    P('Abdoulaye Doucoure',       'MID',  70,  74,  72,  86,   6),
+    P('Amadou Onana',             'MID',  56,  74,  80,  90,   6),
+    P('Idrissa Gueye',            'MID',  40,  68,  84,  82,   6),
+    P('Dwight McNeil',            'MID',  68,  80,  46,  74,   6),
+    P('James Rodriguez',          'MID',  72,  90,  36,  58,   6),
+    P('James Tarkowski',          'DEF',  34,  44,  82,  84,   6),
+    P('Jarrad Branthwaite',       'DEF',  30,  54,  82,  88,   6),
+    P('Vitalii Mykolenko',        'DEF',  38,  62,  74,  82,   6),
+    P('Michael Keane',            'DEF',  36,  46,  74,  82,   6),
+    P('Jordan Pickford',          'GK',    5,  66,  40,  76,  86),
+  ],
+},
+
+/* ------------------------------------------------------------- LEICESTER -- */
+'Leicester': {
+  // NOTE: no 2000s pool. Leicester were relegated in 2002 and again in 2004 and
+  // spent the rest of the decade outside the Premier League, so there is no
+  // honest 2000s cell to draft from. Sparse cells are simply skipped by the
+  // slot machine — see buildPools().
+  '2010s': [
+    P('Jamie Vardy',              'FWD',  90,  74,  34,  94,   6),
+    P('Riyad Mahrez',             'FWD',  86,  92,  30,  80,   6),
+    P('Shinji Okazaki',           'FWD',  70,  70,  56,  82,   6),
+    P('Demarai Gray',             'FWD',  70,  74,  32,  88,   6),
+    P('N\'Golo Kante',            'MID',  48,  74,  92,  92,   6),
+    P('Danny Drinkwater',         'MID',  58,  80,  70,  76,   6),
+    P('Youri Tielemans',          'MID',  72,  86,  60,  72,   6),
+    P('James Maddison',           'MID',  76,  88,  42,  68,   6),
+    P('Marc Albrighton',          'MID',  62,  78,  56,  80,   6),
+    P('Wilfred Ndidi',            'MID',  44,  68,  86,  88,   6),
+    P('Wes Morgan',               'DEF',  32,  38,  80,  84,   6),
+    P('Robert Huth',              'DEF',  34,  36,  80,  86,   6),
+    P('Harry Maguire',            'DEF',  40,  54,  80,  86,   6),
+    P('Ben Chilwell',             'DEF',  46,  72,  74,  84,   6),
+    P('Ricardo Pereira',          'DEF',  50,  76,  76,  86,   6),
+    P('Kasper Schmeichel',        'GK',    5,  46,  38,  78,  85),
+  ],
+  '2020s': [
+    P('Jamie Vardy',              'FWD',  86,  70,  32,  84,   6),
+    P('Harvey Barnes',            'FWD',  78,  78,  34,  88,   6),
+    P('Kelechi Iheanacho',        'FWD',  74,  72,  32,  78,   6),
+    P('Patson Daka',              'FWD',  70,  60,  28,  86,   6),
+    P('James Maddison',           'MID',  80,  90,  44,  68,   6),
+    P('Youri Tielemans',          'MID',  74,  88,  62,  72,   6),
+    P('Wilfred Ndidi',            'MID',  46,  70,  84,  88,   6),
+    P('Kiernan Dewsbury-Hall',    'MID',  66,  80,  60,  80,   6),
+    P('Wesley Fofana',            'DEF',  30,  56,  84,  88,   6),
+    P('Caglar Soyuncu',           'DEF',  34,  52,  78,  86,   6),
+    P('Jonny Evans',              'DEF',  28,  58,  80,  74,   6),
+    P('Timothy Castagne',         'DEF',  46,  68,  74,  84,   6),
+    P('Ricardo Pereira',          'DEF',  50,  76,  74,  82,   6),
+    P('Kasper Schmeichel',        'GK',    5,  46,  38,  76,  84),
+  ],
+},
+
+/* ----------------------------------------------------------- ASTON VILLA -- */
+'Aston Villa': {
+  '2000s': [
+    P('Juan Pablo Angel',         'FWD',  80,  70,  26,  78,   6),
+    P('John Carew',               'FWD',  78,  64,  34,  90,   6),
+    P('Gabriel Agbonlahor',       'FWD',  76,  66,  36,  94,   6),
+    P('Darius Vassell',           'FWD',  72,  60,  28,  90,   6),
+    P('Gareth Barry',             'MID',  66,  84,  74,  76,   6),
+    P('Ashley Young',             'MID',  74,  84,  46,  84,   6),
+    P('James Milner',             'MID',  68,  82,  66,  84,   6),
+    P('Stiliyan Petrov',          'MID',  56,  76,  70,  78,   6),
+    P('Olof Mellberg',            'DEF',  30,  46,  80,  84,   6),
+    P('Martin Laursen',           'DEF',  36,  50,  82,  82,   6),
+    P('Thomas Sorensen',          'GK',    5,  44,  36,  78,  80),
+    P('Brad Friedel',             'GK',    5,  46,  36,  78,  83),
+  ],
+  // NOTE: Villa were in the Championship from 2016 to 2019, so this decade is
+  // legitimately thin. Only top-flight Villa players are listed.
+  '2010s': [
+    P('Christian Benteke',        'FWD',  84,  66,  34,  90,   6),
+    P('Darren Bent',              'FWD',  78,  62,  24,  78,   6),
+    P('Gabriel Agbonlahor',       'FWD',  72,  64,  38,  90,   6),
+    P('Jack Grealish',            'MID',  72,  88,  44,  74,   6),
+    P('John McGinn',              'MID',  70,  80,  70,  86,   6),
+    P('Fabian Delph',             'MID',  56,  76,  66,  82,   6),
+    P('Ashley Young',             'MID',  72,  82,  48,  84,   6),
+    P('Tyrone Mings',             'DEF',  34,  48,  78,  88,   6),
+    P('Ron Vlaar',                'DEF',  30,  46,  80,  84,   6),
+    P('Ciaran Clark',             'DEF',  28,  40,  72,  80,   6),
+    P('Brad Guzan',               'GK',    5,  44,  36,  78,  79),
+  ],
+  '2020s': [
+    P('Ollie Watkins',            'FWD',  86,  76,  40,  92,   6),
+    P('Leon Bailey',              'FWD',  78,  80,  30,  90,   6),
+    P('Emiliano Buendia',         'MID',  70,  84,  46,  72,   6),
+    P('John McGinn',              'MID',  72,  82,  72,  86,   6),
+    P('Douglas Luiz',             'MID',  70,  84,  74,  76,   6),
+    P('Youri Tielemans',          'MID',  72,  86,  62,  70,   6),
+    P('Boubacar Kamara',          'MID',  48,  76,  84,  80,   6),
+    P('Jack Grealish',            'MID',  74,  90,  44,  76,   6),
+    P('Jacob Ramsey',             'MID',  66,  76,  54,  82,   6),
+    P('Ezri Konsa',               'DEF',  32,  58,  82,  84,   6),
+    P('Pau Torres',               'DEF',  32,  68,  82,  76,   6),
+    P('Tyrone Mings',             'DEF',  36,  50,  80,  86,   6),
+    P('Matty Cash',               'DEF',  48,  64,  72,  88,   6),
+    P('Lucas Digne',              'DEF',  44,  78,  72,  76,   6),
+    P('Emiliano Martinez',        'GK',    5,  56,  40,  82,  89),
+  ],
+},
+
+/* -------------------------------------------------------------- WEST HAM -- */
+'West Ham': {
+  '2000s': [
+    P('Paolo Di Canio',           'FWD',  86,  90,  28,  66,   6),
+    P('Carlos Tevez',             'FWD',  84,  80,  44,  84,   6),
+    P('Jermain Defoe',            'FWD',  82,  66,  24,  82,   6),
+    P('Dean Ashton',              'FWD',  78,  74,  34,  80,   6),
+    P('Frederic Kanoute',         'FWD',  78,  76,  30,  86,   6),
+    P('Joe Cole',                 'MID',  72,  86,  44,  70,   6),
+    P('Michael Carrick',          'MID',  50,  80,  70,  70,   6),
+    P('Scott Parker',             'MID',  58,  78,  78,  84,   6),
+    P('Mark Noble',               'MID',  58,  78,  70,  74,   6),
+    P('Matthew Upson',            'DEF',  28,  50,  78,  78,   6),
+    P('Anton Ferdinand',          'DEF',  26,  46,  72,  82,   6),
+    P('James Collins',            'DEF',  26,  38,  74,  84,   6),
+    P('Robert Green',             'GK',    5,  46,  36,  76,  80),
+    P('David James',              'GK',    5,  48,  36,  80,  81),
+  ],
+  '2010s': [
+    P('Dimitri Payet',            'MID',  80,  93,  36,  70,   6),
+    P('Michail Antonio',          'FWD',  76,  68,  40,  94,   6),
+    P('Marko Arnautovic',         'FWD',  78,  78,  34,  86,   6),
+    P('Andy Carroll',             'FWD',  74,  56,  38,  88,   6),
+    P('Manuel Lanzini',           'MID',  70,  82,  44,  68,   6),
+    P('Declan Rice',              'MID',  50,  72,  84,  86,   6),
+    P('Mark Noble',               'MID',  60,  78,  68,  72,   6),
+    P('Felipe Anderson',          'MID',  72,  82,  38,  84,   6),
+    P('Kevin Nolan',              'MID',  68,  66,  56,  66,   6),
+    P('Winston Reid',             'DEF',  30,  46,  78,  84,   6),
+    P('Aaron Cresswell',          'DEF',  42,  74,  72,  74,   6),
+    P('Issa Diop',                'DEF',  28,  44,  74,  88,   6),
+    P('Lukasz Fabianski',         'GK',    5,  48,  36,  76,  84),
+    P('Adrian',                   'GK',    5,  46,  36,  74,  76),
+  ],
+  '2020s': [
+    P('Jarrod Bowen',             'FWD',  84,  82,  44,  86,   6),
+    P('Michail Antonio',          'FWD',  76,  66,  40,  92,   6),
+    P('Mohammed Kudus',           'MID',  80,  86,  40,  88,   6),
+    P('Lucas Paqueta',            'MID',  74,  88,  52,  76,   6),
+    P('Declan Rice',              'MID',  62,  80,  88,  88,   6),
+    P('Tomas Soucek',             'MID',  70,  62,  74,  88,   6),
+    P('Said Benrahma',            'MID',  72,  80,  34,  76,   6),
+    P('Pablo Fornals',            'MID',  66,  78,  56,  76,   6),
+    P('Kurt Zouma',               'DEF',  34,  44,  78,  88,   6),
+    P('Nayef Aguerd',             'DEF',  32,  54,  78,  84,   6),
+    P('Vladimir Coufal',          'DEF',  38,  64,  74,  80,   6),
+    P('Aaron Cresswell',          'DEF',  42,  72,  70,  70,   6),
+    P('Lukasz Fabianski',         'GK',    5,  48,  38,  74,  82),
+    P('Alphonse Areola',          'GK',    5,  50,  38,  80,  81),
+  ],
+},
+
+};
+
+/* ----------------------------------------------------------------------------
+   Pool construction.
+
+   A (club, era) pair is a "cell". Cells are stamped with their club and era so
+   a drafted player carries its own provenance, and cells thinner than
+   CONFIG.DRAFT.MIN_POOL are dropped from the spin pool entirely — a slot
+   machine that can land on an empty shelf is a bug, not a feature.
+   ---------------------------------------------------------------------------- */
+
+const POOL = { cells:[], byKey:{}, clubs:[], erasByClub:{} };
+
+function cellKey(club, era){ return club + '|' + era; }
+
+function buildPools(){
+  POOL.cells.length = 0;
+  POOL.byKey = {};
+  POOL.clubs = [];
+  POOL.erasByClub = {};
+
+  for(const club of Object.keys(CLUBS)){
+    for(const era of CONFIG.ERAS){                 // iterate ERAS so order is stable
+      const raw = CLUBS[club][era];
+      if(!raw || raw.length < CONFIG.DRAFT.MIN_POOL) continue;
+
+      const players = raw.map((p, i) => ({
+        id: club + '|' + era + '|' + i,
+        name: p.name,
+        position: p.position,
+        ratings: p.ratings,
+        era,
+        club,
+      }));
+
+      const cell = { club, era, players };
+      POOL.cells.push(cell);
+      POOL.byKey[cellKey(club, era)] = cell;
+      (POOL.erasByClub[club] ||= []).push(era);
+    }
+    if(POOL.erasByClub[club]) POOL.clubs.push(club);
+  }
+  return POOL;
+}
+
+/** Every era that actually has a spinnable cell, in CONFIG order. */
+function erasInPlay(){
+  return CONFIG.ERAS.filter(e => POOL.cells.some(c => c.era === e));
+}
+
+/** Clubs that have a spinnable cell in the given era. */
+function clubsInEra(era){
+  return POOL.clubs.filter(club => POOL.byKey[cellKey(club, era)]);
+}
+
+buildPools();
+
+
+/* ---- Data self-checks ---------------------------------------------------- */
+function testData(){
+  const POSITIONS = ['GK','DEF','MID','FWD'];
+  let playerCount = 0, bad = [];
+
+  for(const cell of POOL.cells){
+    const seen = new Set();
+    for(const p of cell.players){
+      playerCount++;
+      if(!POSITIONS.includes(p.position)) bad.push(p.name + ' has position ' + p.position);
+      for(const k of ['attack','creativity','defense','physical','gk']){
+        const v = p.ratings[k];
+        if(typeof v !== 'number' || v < 0 || v > 100) bad.push(p.name + '.' + k + ' = ' + v);
+      }
+      if(seen.has(p.name)) bad.push('duplicate ' + p.name + ' in ' + cell.club + ' ' + cell.era);
+      seen.add(p.name);
+      if(p.era !== cell.era || p.club !== cell.club) bad.push(p.name + ' mis-stamped');
+    }
+  }
+
+  check('DATA: every player has a valid position and 0-100 ratings',
+    bad.length === 0, bad.slice(0,5).join(' | '));
+  check('DATA: no duplicate names inside a single club/era cell', bad.length === 0);
+
+  check('DATA: every spinnable cell meets MIN_POOL',
+    POOL.cells.every(c => c.players.length >= CONFIG.DRAFT.MIN_POOL));
+  check('DATA: only the three configured eras appear',
+    POOL.cells.every(c => CONFIG.ERAS.includes(c.era)));
+  check('DATA: every club in the pool has CLUB_META',
+    POOL.clubs.every(c => !!CLUB_META[c]),
+    POOL.clubs.filter(c=>!CLUB_META[c]).join(', '));
+  check('DATA: every era has at least two clubs to draw from',
+    erasInPlay().every(e => clubsInEra(e).length >= 2));
+  check('DATA: pool is big enough to be interesting',
+    POOL.cells.length >= 20 && playerCount >= 250,
+    POOL.cells.length + ' cells, ' + playerCount + ' players');
+
+  // Spot checks — a guard against a careless edit moving someone to the wrong
+  // club or decade.
+  const has = (club, era, name) =>
+    !!(POOL.byKey[cellKey(club,era)] || {players:[]}).players.find(p => p.name === name);
+  check('DATA: Thierry Henry is Arsenal, 2000s', has('Arsenal','2000s','Thierry Henry'));
+  check('DATA: Erling Haaland is Man City, 2020s', has('Man City','2020s','Erling Haaland'));
+  check('DATA: Alan Shearer is Newcastle, 2000s', has('Newcastle','2000s','Alan Shearer'));
+  check('DATA: Jamie Vardy is Leicester, 2010s', has('Leicester','2010s','Jamie Vardy'));
+  check('DATA: Leicester has no 2000s cell (they were not in the division)',
+    !POOL.byKey[cellKey('Leicester','2000s')]);
+  check('DATA: Rooney appears for Everton and Man Utd in the 2000s',
+    has('Everton','2000s','Wayne Rooney') && has('Man Utd','2000s','Wayne Rooney'));
+
+  // Keepers must be findable, or a six-slot draft can get very silly.
+  const gkCells = POOL.cells.filter(c => c.players.some(p => p.position === 'GK')).length;
+  check('DATA: most cells contain at least one goalkeeper',
+    gkCells >= POOL.cells.length - 2, gkCells + '/' + POOL.cells.length);
+
+  T.notes.push('Pool: ' + POOL.cells.length + ' club/era cells, ' + playerCount + ' players, ' +
+    POOL.clubs.length + ' clubs.');
+}
+
+
 /* ============================================================================
    7. TESTS — `?test=1`. console.assert is the contract; the on-screen report
    is a convenience. These are the correctness oracle for every milestone.
