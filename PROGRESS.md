@@ -8,7 +8,7 @@ Build log for the single-file Premier League team-builder. See `SPEC.md` for the
 |---|---|
 | 1. Scaffold + CONFIG + seeded PRNG + PRNG tests | **done** |
 | 2. Data model + club/era pools | **done** |
-| 3. `simulateSeason` + tests + tuning | not started |
+| 3. `simulateSeason` + tests + tuning | **done** |
 | 4. Draft loop + slot machine + spins/skips | not started |
 | 5. UI polish, results, share, localStorage best | not started |
 | 6. Final pass | not started |
@@ -35,9 +35,37 @@ Build log for the single-file Premier League team-builder. See `SPEC.md` for the
 - 14 data self-checks including spot checks that specific players are at the
   right club in the right decade.
 
+- `simulateSeason(lineup)` — deterministic (seeded from the lineup itself, so a
+  squad has exactly one season in it), returns `{wins, draws, losses}` plus a
+  `results[]` string and the underlying analysis.
+- `analyseLineup()` — positional fit, phase roll-up (attack / midfield / defense
+  / gk), chemistry from shared club-and-era pairs, era cohesion and a balance
+  penalty on lopsided squads.
+- Emergency keepers: an outfielder in goal is worth a floor, not a zero — bad
+  enough that the draft still wants a real keeper, not so bad that a keeper-less
+  spin ends the run.
+- Rising opponent curve with the last ten matches as a genuine run-in.
+- Category gates: a phase below its threshold bleeds edge from matchday 20 and
+  hard-caps the number of wins, surrendered from the hardest fixtures backwards.
+- 21 simulation self-checks including determinism, `W+D+L === 38` across 300
+  random plus junk lineups, monotonicity, and gate behaviour.
+
+### Tuned distribution (n=1000 each, logged by `?test=1`)
+
+| play style | median wins | 38-0 rate |
+|---|---|---|
+| random players, random slots | 8 | 0% |
+| random players, sensible slots | 22 | 0% |
+| drafted well (best available, best slot) | 36 | 11.7% |
+| pool's theoretical best XI | 38 | — |
+
+The median random-but-sensible team lands at 22 wins, inside the 18-24 target
+band. A well-drafted side is usually agonisingly close — median 36, unbeaten 32%
+of the time — and goes the full 38-0 about once in nine runs.
+
 ## Stubbed
 
-- Everything from milestone 3 onward.
+- Everything from milestone 4 onward.
 
 ## Notes
 

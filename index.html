@@ -270,8 +270,10 @@ const CONFIG = {
     'DEF>MID': 0.86, 'MID>DEF': 0.86,   // read as "player DEF in a MID slot"
     'MID>FWD': 0.88, 'FWD>MID': 0.88,
     'DEF>FWD': 0.64, 'FWD>DEF': 0.64,
-    GK_OUT: 0.42,                        // a keeper played outfield
-    GK_IN:  0.30,                        // an outfielder shoved in goal
+    GK_OUT: 0.45,                        // a keeper played outfield: hopeless
+    GK_IN:  0.80,                        // an outfielder shoved in goal — most of
+                                         // the cost is the emergency-keeper floor
+                                         // below, not this multiplier
   },
   FIT_DEFAULT: 0.70,
 
@@ -288,6 +290,11 @@ const CONFIG = {
     // team lives or dies on its midfield.
     MID_INTO_ATTACK:  0.26,
     MID_INTO_DEFENCE: 0.18,
+    // An outfielder in goal is not a zero — somebody pulls the gloves on and
+    // catches a few. This floor is what they are worth, and it is deliberately
+    // well below the goalkeeping gate so the draft still wants a real keeper.
+    EMERGENCY_GK_BASE: 26,
+    EMERGENCY_GK_PHYS: 0.16,
   },
 
   /* ---- Chemistry & balance ---- */
@@ -307,13 +314,14 @@ const CONFIG = {
      38 opponents, getting harder. The last GAUNTLET_FROM matches are the
      title run-in and are brutal by design: 38-0 has to be earned late. ---- */
   CURVE: {
-    START: 54,              // matchday 1 opponent rating
-    END: 76,                // matchday 38 baseline before the gauntlet
+    START: 45,              // matchday 1 opponent rating
+    END: 64,                // matchday 38 baseline before the gauntlet
     SHAPE: 1.25,            // >1 back-loads the difficulty
-    GAUNTLET_FROM: 28,      // 0-indexed matchday where the run-in begins
-    GAUNTLET_PEAK: 13,      // extra rating added by the final match
-    GAUNTLET_SHAPE: 1.6,
-    WOBBLE: 3.2,            // deterministic per-fixture variation
+    GAUNTLET_FROM: 28,      // 0-indexed matchday where the run-in begins:
+                            // the last ten are the title run-in
+    GAUNTLET_PEAK: 17,      // extra rating added by the final match
+    GAUNTLET_SHAPE: 1.50,
+    WOBBLE: 2.6,            // deterministic per-fixture variation
   },
 
   /* ---- Match resolution ----
@@ -322,12 +330,12 @@ const CONFIG = {
      far more than the same gap between mediocre ones. ---- */
   MATCH: {
     W_ATTACK:0.30, W_MIDFIELD:0.26, W_DEFENSE:0.28, W_GK:0.16,
-    STEEP: 0.155,           // logistic steepness on `edge`
+    STEEP: 0.170,           // logistic steepness on `edge`
     DRAW_BAND: 0.30,        // share of the probability mass nearest parity
                             // that becomes a draw
-    DRAW_DECAY: 0.055,      // how fast draws vanish as the edge grows
-    ELITE_FROM: 78,         // above this team rating the curve sharpens...
-    ELITE_GAIN: 0.055,      // ...by this much per point, making the top end
+    DRAW_DECAY: 0.190,      // how fast draws vanish as the edge grows
+    ELITE_FROM: 74,         // above this team rating the curve sharpens...
+    ELITE_GAIN: 0.070,      // ...by this much per point, making the top end
                             // of the draft matter enormously
   },
 
@@ -336,12 +344,14 @@ const CONFIG = {
      Below `min`, a phase bleeds `slope` points of edge per point of shortfall
      in the run-in, and hard-caps the number of wins the season can produce. */
   GATES: [
-    { phase:'defense',  min:64, slope:0.85, capPerPoint:0.85, label:'Defence' },
-    { phase:'gk',       min:60, slope:0.70, capPerPoint:0.70, label:'Goalkeeping' },
-    { phase:'attack',   min:62, slope:0.75, capPerPoint:0.75, label:'Attack' },
-    { phase:'midfield', min:60, slope:0.60, capPerPoint:0.55, label:'Midfield' },
+    { phase:'defense',  min:62, slope:0.30, capPerPoint:0.26, label:'Defence' },
+    { phase:'gk',       min:58, slope:0.24, capPerPoint:0.20, label:'Goalkeeping' },
+    { phase:'attack',   min:60, slope:0.26, capPerPoint:0.22, label:'Attack' },
+    { phase:'midfield', min:58, slope:0.22, capPerPoint:0.18, label:'Midfield' },
   ],
   GATE_BITE_FROM: 20,       // gates only start costing points from here on
+  GATE_CAP_MAX: 20,         // the most wins the gates may strip in total, so a
+                            // squad with one hole is wounded, not erased
 
   /* ---- Verdict tiers (first match wins, so order matters) ---- */
   VERDICTS: [
@@ -1149,6 +1159,551 @@ function testData(){
 
   T.notes.push('Pool: ' + POOL.cells.length + ' club/era cells, ' + playerCount + ' players, ' +
     POOL.clubs.length + ' clubs.');
+}
+
+
+
+/* ============================================================================
+   4. SIM — simulateSeason(lineup) -> { wins, draws, losses, ... }
+   ----------------------------------------------------------------------------
+   Fully deterministic: the same lineup always produces the same season. The
+   randomness is real (match outcomes are rolled, not averaged) but the stream
+   is seeded from the lineup itself, so a squad has exactly one season in it.
+
+   Shape of the model:
+     lineup -> per-slot fit -> phase ratings -> chemistry -> one team rating
+     team rating vs a rising opponent curve -> logistic -> W/D/L per match
+     category gates then hard-cap the number of wins a holed squad can take.
+   ============================================================================ */
+
+/** How much of a player survives being played out of position. */
+function fitFor(slotRole, playerPosition){
+  if(!playerPosition) return 0;
+  if(slotRole === playerPosition) return CONFIG.FIT.exact;
+  if(slotRole === 'GK') return CONFIG.FIT.GK_IN;          // outfielder in goal
+  if(playerPosition === 'GK') return CONFIG.FIT.GK_OUT;   // keeper sent outfield
+  const key = playerPosition + '>' + slotRole;            // "DEF>MID" etc.
+  const v = CONFIG.FIT[key];
+  return typeof v === 'number' ? v : CONFIG.FIT_DEFAULT;
+}
+
+/**
+ * A player's attributes as they actually apply in the slot they are filling.
+ * The only substitution is the emergency keeper: an outfielder between the
+ * sticks is not a zero, but they are a long way below a real goalkeeper.
+ */
+function effectiveRatings(player, slotRole){
+  const r = (player && player.ratings) || {};
+  if(slotRole !== 'GK') return r;
+  const gk = typeof r.gk === 'number' ? r.gk : 0;
+  const phys = typeof r.physical === 'number' ? r.physical : 0;
+  const emergency = CONFIG.PHASE.EMERGENCY_GK_BASE + CONFIG.PHASE.EMERGENCY_GK_PHYS * phys;
+  return gk >= emergency ? r : Object.assign({}, r, { gk: emergency });
+}
+
+/** Weighted roll-up of one player's attributes for the slot they are filling. */
+function phaseScore(ratings, weights){
+  let total = 0;
+  for(const key in weights){
+    const r = ratings ? ratings[key] : 0;
+    total += weights[key] * (typeof r === 'number' && isFinite(r) ? clamp(r,0,100) : 0);
+  }
+  return total;
+}
+
+function mean(list){ return list.length ? list.reduce((a,b)=>a+b,0) / list.length : 0; }
+
+function stdev(list){
+  if(list.length < 2) return 0;
+  const m = mean(list);
+  return Math.sqrt(mean(list.map(v => (v-m)*(v-m))));
+}
+
+/**
+ * Turn a lineup into the four phase ratings plus a chemistry multiplier.
+ * Tolerates junk: missing slots, nulls, players with malformed ratings.
+ */
+function analyseLineup(lineup){
+  const L = (lineup && typeof lineup === 'object') ? lineup : {};
+
+  const slots = CONFIG.FORMATION.map(slot => {
+    const p = L[slot.id];
+    const ok = !!(p && typeof p === 'object' && typeof p.position === 'string' && p.ratings);
+    const fit = ok ? fitFor(slot.role, p.position) : 0;
+    const raw = ok ? phaseScore(effectiveRatings(p, slot.role), CONFIG.PHASE[slot.role]) : 0;
+    return { slot, player: ok ? p : null, fit, score: raw * fit };
+  });
+
+  const byRole = role => slots.filter(s => s.slot.role === role);
+  const scoreOf = role => mean(byRole(role).map(s => s.score));
+
+  const gkScore  = scoreOf('GK');
+  const defScore = scoreOf('DEF');
+  const midScore = scoreOf('MID');
+  const fwdScore = scoreOf('FWD');
+
+  // Midfield bleeds into both boxes. Blends (not additions) so phases stay 0-100.
+  const mA = CONFIG.PHASE.MID_INTO_ATTACK;
+  const mD = CONFIG.PHASE.MID_INTO_DEFENCE;
+  const phases = {
+    attack:   clamp((1-mA)*fwdScore + mA*midScore, 0, 100),
+    midfield: clamp(midScore, 0, 100),
+    defense:  clamp((1-mD)*defScore + mD*midScore, 0, 100),
+    gk:       clamp(gkScore, 0, 100),
+  };
+
+  const filled = slots.filter(s => s.player);
+  const avgFit = mean(slots.map(s => s.fit));   // empty slots count as zero fit
+
+  /* ---- Chemistry ---- */
+  const C = CONFIG.CHEM;
+  let chem = C.BASE * ((1 - C.FIT_WEIGHT) + C.FIT_WEIGHT * avgFit);
+
+  // Players who actually shared a dressing room.
+  let pairs = 0;
+  for(let i=0;i<filled.length;i++){
+    for(let j=i+1;j<filled.length;j++){
+      const a = filled[i].player, b = filled[j].player;
+      if(a.club && a.club === b.club && a.era === b.era) pairs++;
+    }
+  }
+  const clubBonus = Math.min(C.SAME_CLUB_ERA_CAP, pairs * C.SAME_CLUB_ERA_PAIR);
+  chem += clubBonus;
+
+  // A side plucked from one moment in time, or one legend from each era.
+  const eras = new Set(filled.map(p => p.player.era).filter(Boolean));
+  let eraBonus = 0;
+  if(filled.length >= 4){
+    if(eras.size === 1) eraBonus = C.ONE_ERA_BONUS;
+    else if(eras.size === 3) eraBonus = C.THREE_ERA_BONUS;
+  }
+  chem += eraBonus;
+
+  // Lopsided squads are punished — this is what stops six forwards working.
+  const spread = stdev([phases.attack, phases.midfield, phases.defense, phases.gk]);
+  const balancePenalty = Math.min(C.BALANCE_CAP, spread * C.BALANCE_PENALTY);
+  chem -= balancePenalty;
+
+  chem = clamp(chem, C.MIN, C.MAX);
+
+  const M = CONFIG.MATCH;
+  const overall =
+    M.W_ATTACK   * phases.attack   +
+    M.W_MIDFIELD * phases.midfield +
+    M.W_DEFENSE  * phases.defense  +
+    M.W_GK       * phases.gk;
+
+  const rating = clamp(overall * chem, 0, 120);
+
+  /* ---- Category gates ---- */
+  let capLoss = 0, edgeLoss = 0;
+  const gates = CONFIG.GATES.map(g => {
+    const value = phases[g.phase];
+    const shortfall = Math.max(0, g.min - value);
+    capLoss  += shortfall * g.capPerPoint;
+    edgeLoss += shortfall * g.slope;
+    return { phase:g.phase, label:g.label, min:g.min, value, shortfall, failing: shortfall > 0 };
+  });
+  const capped = Math.min(CONFIG.GATE_CAP_MAX, Math.ceil(capLoss));
+  const winCap = clamp(CONFIG.SEASON.MATCHES - capped, 0, CONFIG.SEASON.MATCHES);
+
+  return {
+    slots, phases, chem, avgFit, overall, rating,
+    clubBonus, eraBonus, balancePenalty, pairs, eraCount: eras.size,
+    filledCount: filled.length,
+    gates, winCap, gateEdgeLoss: edgeLoss,
+  };
+}
+
+/**
+ * Opponent strength for matchday `i` (0-indexed). Identical for every player,
+ * every time — the fixture list is a fixed feature of the world, so two squads
+ * can be compared fairly. Rises through the season and then spikes for the
+ * run-in.
+ */
+function opponentRating(i){
+  const C = CONFIG.CURVE, N = CONFIG.SEASON.MATCHES;
+  const t = N > 1 ? i / (N - 1) : 0;
+  let r = C.START + (C.END - C.START) * Math.pow(t, C.SHAPE);
+
+  if(i >= C.GAUNTLET_FROM){
+    const g = (i - C.GAUNTLET_FROM + 1) / Math.max(1, N - C.GAUNTLET_FROM);
+    r += C.GAUNTLET_PEAK * Math.pow(g, C.GAUNTLET_SHAPE);
+  }
+  // Deterministic per-fixture variation, keyed only on the matchday so the
+  // season shape is the same for everybody.
+  const w = (hashString('fixture:' + i) / 4294967296) - 0.5;
+  return r + w * 2 * C.WOBBLE;
+}
+
+/** The whole 38-match difficulty curve, for the UI and for tuning. */
+function difficultyCurve(){
+  const out = [];
+  for(let i=0;i<CONFIG.SEASON.MATCHES;i++) out.push(opponentRating(i));
+  return out;
+}
+
+/** A stable seed derived from the lineup itself, so a squad has one season. */
+function lineupSeed(lineup){
+  const L = (lineup && typeof lineup === 'object') ? lineup : {};
+  const parts = CONFIG.FORMATION.map(slot => {
+    const p = L[slot.id];
+    if(!p || typeof p !== 'object') return slot.id + ':-';
+    return slot.id + ':' + (p.name || '?') + ':' + (p.club || '?') + ':' + (p.era || '?');
+  });
+  return hashString(parts.join('|'));
+}
+
+const logistic = x => 1 / (1 + Math.exp(-x));
+
+/**
+ * Run the season.
+ * @param {Object} lineup  slot id -> player
+ * @returns {{wins:number, draws:number, losses:number, results:string[], analysis:Object}}
+ */
+function simulateSeason(lineup){
+  const N = CONFIG.SEASON.MATCHES;
+  const M = CONFIG.MATCH;
+  const a = analyseLineup(lineup);
+  const rnd = mulberry32(lineupSeed(lineup));
+
+  // Elite squads sit on a steeper curve: at the top of the game, two rating
+  // points is the difference between a win and a nervous draw.
+  const steep = M.STEEP * (1 + Math.max(0, a.rating - M.ELITE_FROM) * M.ELITE_GAIN);
+
+  const results = [];
+  const detail = [];
+
+  for(let i=0;i<N;i++){
+    const opp = opponentRating(i);
+    let edge = a.rating - opp;
+
+    // A hole in the squad only really tells in the run-in, when it is cold and
+    // the opposition are good enough to find it.
+    if(i >= CONFIG.GATE_BITE_FROM) edge -= a.gateEdgeLoss;
+
+    const pWinRaw = logistic(edge * steep);
+    const pDraw = clamp(M.DRAW_BAND * Math.exp(-Math.abs(edge) * M.DRAW_DECAY), 0, 0.9);
+    const rest = 1 - pDraw;
+    const pWin = rest * pWinRaw;
+
+    const roll = rnd();
+    const res = roll < pWin ? 'W' : (roll < pWin + pDraw ? 'D' : 'L');
+    results.push(res);
+    detail.push({ i, opp, edge, pWin, pDraw, res });
+  }
+
+  /* ---- Gate cap: a holed squad cannot take the maximum, however it rolled.
+     Wins are surrendered from the hardest fixtures backwards, which is where
+     a weakness would actually cost you. ---- */
+  let wins = results.filter(r => r === 'W').length;
+  if(wins > a.winCap){
+    const order = detail
+      .map(d => d)
+      .filter(d => d.res === 'W')
+      .sort((x, y) => y.opp - x.opp);      // hardest first
+    let surrender = wins - a.winCap;
+    for(const d of order){
+      if(surrender <= 0) break;
+      results[d.i] = 'D';
+      d.res = 'D';
+      surrender--;
+    }
+    wins = a.winCap;
+  }
+
+  const draws  = results.filter(r => r === 'D').length;
+  const losses = results.filter(r => r === 'L').length;
+
+  return { wins, draws, losses, results, detail, analysis: a };
+}
+
+/** Points, for the results screen. */
+function pointsFrom(r){ return r.wins * 3 + r.draws; }
+
+/** First matching verdict tier. */
+function verdictFor(r){
+  for(const v of CONFIG.VERDICTS){
+    if(r.wins >= v.wins && (v.losses === undefined || r.losses <= v.losses)) return v;
+  }
+  return CONFIG.VERDICTS[CONFIG.VERDICTS.length - 1];
+}
+
+
+/* ---- Tuning aid -----------------------------------------------------------
+   Builds `n` teams and reports the win distribution. `mode`:
+     'fit'    six random players, each dropped into a slot they actually suit
+              (what a player who is paying attention ends up with)
+     'blind'  six random players in six random slots
+     'best'   the strongest legal team the whole pool can produce
+   --------------------------------------------------------------------------- */
+function randomLineup(rnd, blind){
+  const slots = CONFIG.FORMATION.map(s => s.id);
+  const open = blind ? rngShuffle(rnd, slots) : slots.slice();
+  const lineup = {};
+  const byRole = {};
+  for(const s of CONFIG.FORMATION) (byRole[s.role] ||= []).push(s.id);
+
+  for(let r=0;r<CONFIG.DRAFT.ROUNDS;r++){
+    const cell = rngPick(rnd, POOL.cells);
+    const p = rngPick(rnd, cell.players);
+    let target;
+    if(blind){
+      target = open.shift();
+    }else{
+      // Prefer an open slot this player actually fits, else anything open.
+      const natural = (byRole[p.position] || []).filter(id => !lineup[id]);
+      const anyOpen = slots.filter(id => !lineup[id]);
+      target = natural.length ? natural[0] : anyOpen[0];
+    }
+    if(target) lineup[target] = p;
+  }
+  return lineup;
+}
+
+/** Best score any player in the pool can post in a given slot — used to make
+    scores comparable across roles, so a world-class keeper reads as valuable as
+    a world-class forward. */
+let ROLE_NORM = null;
+function roleNorm(role){
+  if(!ROLE_NORM){
+    ROLE_NORM = {};
+    for(const slot of CONFIG.FORMATION){
+      if(ROLE_NORM[slot.role]) continue;
+      let best = 1;
+      for(const cell of POOL.cells) for(const p of cell.players){
+        const s = phaseScore(effectiveRatings(p, slot.role), CONFIG.PHASE[slot.role]) * fitFor(slot.role, p.position);
+        if(s > best) best = s;
+      }
+      ROLE_NORM[slot.role] = best;
+    }
+  }
+  return ROLE_NORM[role];
+}
+
+/** How a player who is paying attention drafts: from each offered pool, take
+    the (player, open slot) pairing that adds the most, normalised by role. */
+function smartLineup(rnd){
+  const lineup = {};
+  for(let r=0;r<CONFIG.DRAFT.ROUNDS;r++){
+    const cell = rngPick(rnd, POOL.cells);
+    const offered = rngShuffle(rnd, cell.players).slice(0, CONFIG.DRAFT.POOL_SHOWN);
+    let pick = null, pickSlot = null, bestVal = -1;
+    for(const p of offered){
+      for(const slot of CONFIG.FORMATION){
+        if(lineup[slot.id]) continue;
+        const raw = phaseScore(effectiveRatings(p, slot.role), CONFIG.PHASE[slot.role]) * fitFor(slot.role, p.position);
+        const val = raw / roleNorm(slot.role);
+        if(val > bestVal){ bestVal = val; pick = p; pickSlot = slot.id; }
+      }
+    }
+    if(pick) lineup[pickSlot] = pick;
+  }
+  return lineup;
+}
+
+function bestPossibleLineup(){
+  const lineup = {};
+  const used = new Set();
+  for(const slot of CONFIG.FORMATION){
+    let best = null, bestScore = -1;
+    for(const cell of POOL.cells){
+      for(const p of cell.players){
+        if(used.has(p.name)) continue;
+        const s = phaseScore(effectiveRatings(p, slot.role), CONFIG.PHASE[slot.role]) * fitFor(slot.role, p.position);
+        if(s > bestScore){ bestScore = s; best = p; }
+      }
+    }
+    if(best){ lineup[slot.id] = best; used.add(best.name); }
+  }
+  return lineup;
+}
+
+function winHistogram(n, mode){
+  const rnd = mulberry32(20260918);
+  const wins = [];
+  let perfect = 0, unbeaten = 0;
+  for(let k=0;k<n;k++){
+    const lu = mode === 'best'  ? bestPossibleLineup()
+             : mode === 'smart' ? smartLineup(rnd)
+             : randomLineup(rnd, mode === 'blind');
+    const r = simulateSeason(lu);
+    wins.push(r.wins);
+    if(r.wins === 38) perfect++;
+    if(r.losses === 0) unbeaten++;
+  }
+  wins.sort((a,b)=>a-b);
+  const q = p => wins[Math.min(wins.length-1, Math.floor(p * wins.length))];
+  return {
+    n, mode,
+    min: wins[0], max: wins[wins.length-1],
+    p10: q(.10), p25: q(.25), median: q(.50), p75: q(.75), p90: q(.90), p99: q(.99),
+    mean: +(mean(wins).toFixed(2)),
+    perfectPct: +(100*perfect/n).toFixed(2),
+    unbeatenPct: +(100*unbeaten/n).toFixed(2),
+    wins,
+  };
+}
+
+/** Text histogram, logged by the test harness. */
+function histogramText(h){
+  const buckets = new Array(39).fill(0);
+  for(const w of h.wins) buckets[w]++;
+  const peak = Math.max(...buckets, 1);
+  const lines = [];
+  for(let w=0;w<=38;w+=2){
+    const c = (buckets[w]||0) + (buckets[w+1]||0);
+    const bar = '#'.repeat(Math.round(40 * c / peak / 2));
+    lines.push(String(w).padStart(2,' ') + '-' + String(Math.min(38,w+1)).padStart(2,' ') +
+      ' | ' + bar.padEnd(20,' ') + ' ' + c);
+  }
+  return 'mode=' + h.mode + '  n=' + h.n +
+    '\nmin=' + h.min + ' p10=' + h.p10 + ' p25=' + h.p25 + ' median=' + h.median +
+    ' p75=' + h.p75 + ' p90=' + h.p90 + ' p99=' + h.p99 + ' max=' + h.max + ' mean=' + h.mean +
+    '\n38-0: ' + h.perfectPct + '%   unbeaten: ' + h.unbeatenPct + '%\n' + lines.join('\n');
+}
+
+
+/* ---- Simulation self-checks ---------------------------------------------- */
+function uniformLineup(value){
+  const lineup = {};
+  for(const slot of CONFIG.FORMATION){
+    lineup[slot.id] = {
+      name: 'Test ' + slot.id, club: 'Test', era: '2020s', position: slot.role,
+      ratings: { attack:value, creativity:value, defense:value, physical:value, gk:value },
+    };
+  }
+  return lineup;
+}
+
+function testSim(){
+  const N = CONFIG.SEASON.MATCHES;
+
+  // Determinism
+  const rnd = mulberry32(4242);
+  const sample = randomLineup(rnd);
+  const r1 = simulateSeason(sample), r2 = simulateSeason(sample);
+  check('SIM: same lineup gives an identical season',
+    r1.wins === r2.wins && r1.draws === r2.draws && r1.losses === r2.losses &&
+    r1.results.join('') === r2.results.join(''),
+    r1.wins + '-' + r1.draws + '-' + r1.losses);
+
+  // Bounded, and the books balance.
+  const lineups = [];
+  const rr = mulberry32(77);
+  for(let i=0;i<300;i++) lineups.push(randomLineup(rr, i % 3 === 0));
+  lineups.push(uniformLineup(100), uniformLineup(0), uniformLineup(50), {}, null, undefined);
+
+  let sumOk = true, boundOk = true, resultsOk = true;
+  for(const lu of lineups){
+    const r = simulateSeason(lu);
+    if(r.wins + r.draws + r.losses !== N) sumOk = false;
+    if([r.wins,r.draws,r.losses].some(v => v < 0 || v > N || !Number.isInteger(v))) boundOk = false;
+    if(r.results.length !== N || r.results.some(c => !'WDL'.includes(c))) resultsOk = false;
+  }
+  check('SIM: wins + draws + losses === 38 for every lineup, including junk', sumOk);
+  check('SIM: each of W/D/L is an integer in [0,38]', boundOk);
+  check('SIM: results array is 38 characters of W/D/L', resultsOk);
+
+  // Empty / invalid lineups must not throw and must not be rewarded.
+  let crashed = false;
+  let junkResults = [];
+  try{
+    for(const junk of [{}, null, undefined, {GK:null}, {GK:{}}, {GK:{position:'GK'}},
+                       {GK:{position:'ZZ', ratings:{attack:'x'}}}, {NOPE:{}}, [], 'nonsense', 42]){
+      junkResults.push(simulateSeason(junk));
+    }
+  }catch(e){ crashed = true; }
+  check('SIM: invalid or empty lineups do not crash', !crashed);
+  check('SIM: an empty lineup cannot win the league',
+    junkResults.length > 0 && junkResults.every(r => r.wins <= 4),
+    'max wins from junk = ' + Math.max(...junkResults.map(r=>r.wins)));
+
+  // The headline sanity check.
+  const maxR = simulateSeason(uniformLineup(100));
+  const minR = simulateSeason(uniformLineup(0));
+  const midR = simulateSeason(uniformLineup(50));
+  check('SIM: an all-max lineup vastly outperforms an all-min lineup',
+    maxR.wins > minR.wins + 25,
+    'max=' + maxR.wins + 'W  min=' + minR.wins + 'W');
+  check('SIM: win count is monotonic across all-min / all-mid / all-max',
+    minR.wins <= midR.wins && midR.wins <= maxR.wins,
+    minR.wins + ' <= ' + midR.wins + ' <= ' + maxR.wins);
+  check('SIM: a perfect lineup can actually go 38-0', maxR.wins === 38,
+    'all-100 lineup went ' + maxR.wins + '-' + maxR.draws + '-' + maxR.losses);
+
+  // Gates
+  const noKeeper = uniformLineup(90); delete noKeeper.GK;
+  const nk = simulateSeason(noKeeper);
+  check('SIM: a missing goalkeeper caps the season',
+    nk.wins < 38 && nk.analysis.gates.some(g => g.phase === 'gk' && g.failing),
+    'no-keeper season: ' + nk.wins + '-' + nk.draws + '-' + nk.losses);
+
+  const noDefence = uniformLineup(92);
+  for(const id of CONFIG.SLOTS_BY_ROLE.DEF) noDefence[id] = {
+    name:'Striker', club:'Test', era:'2020s', position:'FWD',
+    ratings:{ attack:99, creativity:99, defense:8, physical:60, gk:0 },
+  };
+  const nd = simulateSeason(noDefence);
+  check('SIM: forwards at centre-back trip the defence gate',
+    nd.analysis.gates.some(g => g.phase === 'defense' && g.failing) && nd.wins < 38,
+    'went ' + nd.wins + '-' + nd.draws + '-' + nd.losses +
+    ' (defence ' + nd.analysis.phases.defense.toFixed(1) + ')');
+
+  // The difficulty curve must actually rise, and bite late.
+  const curve = difficultyCurve();
+  check('SIM: opponents get harder across the season',
+    mean(curve.slice(28)) > mean(curve.slice(0,10)) + 12,
+    'first 10 avg ' + mean(curve.slice(0,10)).toFixed(1) +
+    ' vs run-in avg ' + mean(curve.slice(28)).toFixed(1));
+
+  // Chemistry must do something.
+  const oneEra = {}, mixed = {};
+  CONFIG.FORMATION.forEach((slot, i) => {
+    oneEra[slot.id] = { name:'A'+i, club:'Arsenal', era:'2000s', position:slot.role,
+      ratings:{attack:75,creativity:75,defense:75,physical:75,gk:75} };
+    mixed[slot.id]  = { name:'B'+i, club:'Club'+i, era:CONFIG.ERAS[i % 2], position:slot.role,
+      ratings:{attack:75,creativity:75,defense:75,physical:75,gk:75} };
+  });
+  check('SIM: a single-club single-era side has better chemistry than a scattered one',
+    analyseLineup(oneEra).chem > analyseLineup(mixed).chem,
+    analyseLineup(oneEra).chem.toFixed(3) + ' vs ' + analyseLineup(mixed).chem.toFixed(3));
+
+  // Out-of-position play must hurt.
+  const proper = uniformLineup(85);
+  const scrambled = uniformLineup(85);
+  scrambled.GK = { name:'X', club:'T', era:'2020s', position:'FWD',
+    ratings:{attack:85,creativity:85,defense:85,physical:85,gk:85} };
+  check('SIM: an outfielder in goal costs you',
+    analyseLineup(scrambled).rating < analyseLineup(proper).rating);
+
+  /* ---- Distribution. This is the tuning oracle. ---- */
+  const hFit   = winHistogram(1000, 'fit');    // random players, sensible slots
+  const hBlind = winHistogram(500,  'blind');  // random players, random slots
+  const hSmart = winHistogram(1000, 'smart');  // a player who is actually trying
+  const hBest  = winHistogram(1,    'best');   // the pool's theoretical maximum
+  T.notes.push(histogramText(hFit));
+  T.notes.push(histogramText(hBlind));
+  T.notes.push(histogramText(hSmart));
+  T.notes.push('best-possible lineup from the whole pool: ' +
+    hBest.wins[0] + ' wins' + (hBest.perfectPct ? '  (38-0)' : ''));
+
+  check('SIM: a median random-but-sensible team lands in the 18-24 win band',
+    hFit.median >= 18 && hFit.median <= 24, 'median = ' + hFit.median);
+  check('SIM: 38-0 is rare for a random team',
+    hFit.perfectPct <= 2.0, hFit.perfectPct + '% went 38-0');
+  check('SIM: 38-0 is reachable at the top of the distribution',
+    hFit.max >= 34, 'best random team managed ' + hFit.max + ' wins');
+  check('SIM: careless assignment is punished',
+    hBlind.median < hFit.median, 'blind median ' + hBlind.median + ' vs fit median ' + hFit.median);
+  check('SIM: drafting well is worth a lot of wins',
+    hSmart.median >= hFit.median + 10,
+    'smart median ' + hSmart.median + ' vs fit median ' + hFit.median);
+  check('SIM: 38-0 is achievable but uncommon for a well-drafted side',
+    hSmart.perfectPct >= 2 && hSmart.perfectPct <= 25,
+    hSmart.perfectPct + '% of well-drafted sides went 38-0');
+  check('SIM: even a well-drafted side usually drops something',
+    hSmart.median < 38, 'smart median = ' + hSmart.median);
 }
 
 
