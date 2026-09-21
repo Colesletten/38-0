@@ -1,137 +1,158 @@
 # PROGRESS — 38-0
 
-Build log for the single-file Premier League team-builder. The brief is in
-[`SPEC.md`](SPEC.md); how to play and how it works is in [`README.md`](README.md).
+Build log for the single-file Premier League team-builder. The original brief is
+in [`SPEC.md`](SPEC.md); how to play and how it works is in
+[`README.md`](README.md).
 
 ## Status
 
-| Milestone | State |
-|---|---|
-| 1. Scaffold + `CONFIG` + seeded PRNG + PRNG tests | **done** |
-| 2. Data model + club/era pools | **done** |
-| 3. `simulateSeason` + tests + tuning | **done** |
-| 4. Draft loop + slot machine + spins/skips | **done** |
-| 5. UI polish, results, share, localStorage best | **done** |
-| 6. Final pass | **done** |
+All six milestones from the original brief are done, plus a second round of
+changes from playtest feedback.
 
-**62/62 self-checks green.** Verified in Chromium at 360×640, 390×844 and
+**68/68 self-checks green.** Verified in Chromium at 360×640, 390×844 and
 1440×900, with `prefers-reduced-motion`, and opened directly from `file://`.
+A Playwright network audit confirms the page still makes exactly **one** HTTP
+request: the document itself.
 
-## Done
+---
 
-### Engineering constraints
-- One self-contained `index.html`. No build step, no framework, no CDN.
-- **Zero runtime network calls** — audited with Playwright: loading the page and
-  playing a round produces exactly one HTTP request, the document itself. System
-  fonts only, crests are generated SVG, sound is synthesised with WebAudio, the
-  favicon is an inline data URI.
-- Works from `file://` as well as over HTTP.
-- `runTests()` behind `?test=1`, asserting via `console.assert` and rendering an
-  on-screen report.
+## Round 2 — playtest feedback
 
-### Game
-- Six rounds, one pick per slot, into the v1 six-slot lineup
-  (GK / DEF / DEF / MID / MID / FWD) defined as a flat ordered list in
-  `CONFIG.FORMATION` so a full XI is an additive change.
-- Two-reel slot machine with staggered detents. One club-skip and one era-skip
-  per game: a club-skip re-spins the club and holds the era, an era-skip the
-  reverse.
-- Daily seed from the UTC date drives every draw in order, so a date always gives
-  the same opening spin and the same offered pool. Free play reseeds from the
-  clock. Reel filler is cosmetic and drawn from `Math.random`, deliberately never
-  from the seeded stream.
-- No club/era cell is drafted from twice and no player twice.
-- Results: verdict tiers, W/D/L that counts up, points, a 38-square season grid
-  with per-matchday labels, phase meters with the gate threshold marked,
-  chemistry readout, the drafted six with effectiveness figures.
-- Clipboard share with an emoji season grid and an `execCommand` fallback.
-- Personal best in `localStorage`, every access wrapped in `try/catch`.
+### 1. Deeper rosters
 
-### Simulation
-- `simulateSeason(lineup)` is fully deterministic: the stream is seeded from the
-  lineup itself, so a squad has exactly one season in it. Seeding is symmetric
-  across same-role slots — the same two centre-backs in the other order is the
-  same team.
-- Phase roll-up, positional fit, chemistry (shared club-and-era pairs, era
-  cohesion, a balance penalty on lopsided squads), a rising opponent curve with
-  a ten-match run-in, and category gates that bleed edge late and hard-cap wins.
-- Tuned against the histogram oracle logged by `?test=1`:
-
-| play style | median wins | 38-0 rate |
+| | before | after |
 |---|---:|---:|
-| random players, random slots | 8 | 0% |
-| random players, sensible slots | 22 | 0% |
-| best available, best slot | 36 | 11.7% |
-| pool's theoretical best XI | 38 | — |
+| players | 443 | **1,651** |
+| median per club/era | 14 | **51** |
+| smallest cell | 10 | 38 |
+| largest cell | 16 | 76 |
 
-  The median random-but-sensible team lands at 22, inside the 18-24 target band.
-  A well-drafted side is unbeaten about a third of the time and goes the full
-  38-0 roughly once in nine runs.
+That is **3.7× the original**, not quite the 4× asked for. The gap is
+deliberate: the last few names per cell would have been guesses, and the data
+honesty rule in the brief says to leave those out. The thinnest cells are the
+honest ones — Man City's pre-takeover years, Villa's Championship years — and
+they are flagged below.
 
-### Final pass
-- Idle and spinning share a body so the draft screen does not collapse to a void
-  while the reels run; the spin button reads as busy rather than broken.
-- Dead CSS and leftover harness scaffolding removed.
-- One `<script>`, one `<style>`, 145KB, 3225 lines.
+The whole squad is now offered on every spin rather than a sample of eight, with
+line filter chips (All / GK / DEF / MID / FWD, each carrying its count) so a
+50-player roster stays navigable on a phone. `CONFIG.DRAFT.POOL_SHOWN` is kept
+as a dial: 0 means the whole roster, a positive number caps it.
 
-### Design
-- **TOUCHLINE**: ink surfaces, chalk type, one volt-green accent, tabular
-  numerals, mechanical motion. Mobile-first portrait column.
-- `prefers-reduced-motion` honoured; focus rings never removed; focus moves into
-  a sheet on open and returns on close; live region announces the landed cell;
-  season squares carry matchday labels.
+### 2. Seven slots
 
-## Stubbed / deliberately out of scope
+`GK, DEF, DEF, MID, MID, FWD, FWD`. `CONFIG.DRAFT.ROUNDS` now derives from
+`CONFIG.FORMATION.length`, and the slot picker, lineup strip, pips, results list
+and title copy all follow it, so a full XI is still a one-place change.
 
-- **Six slots, not eleven.** Per the brief. `CONFIG.FORMATION` is the only thing
-  that needs to change.
-- **No formation choice** and no substitutes.
-- **No per-match narrative** — the season resolves to a W/D/L string, not events.
-- **Sound is on by default.** It only ever fires after a tap, and the preference
-  is remembered. Say the word and I will flip the default.
-- **`tools/run-tests.mjs`** is a dev-only convenience that lifts the `<script>`
-  out of `index.html` and runs the same `runTests()` in Node. The game does not
-  need it and does not know about it.
+### 3. Much harder, with real variance
+
+The old balance let a well-drafted side go 38-0 **26%** of the time. Three
+changes fixed it:
+
+- **An upset ceiling** (`MATCH.MAX_WIN_PROB = 0.955`). No match is ever more
+  certain than that, whatever your rating. Probability shaved off a win is
+  mostly conceded as a draw.
+- **Season fortune** (`MATCH.FORM_SWING = 15`). One draw from the lineup's own
+  stream, added to the team rating for all 38 matches. This is what makes two
+  equally good squads finish differently — it roughly doubled the spread between
+  squads of identical strength — and it is shown to the player on the results
+  screen as a "How it fell" scale rather than hidden in the engine.
+- **A shallower response curve and a higher floor.** `STEEP` 0.170 → 0.125 and
+  the opponent curve raised from 45-64 to 54-74, so rating still matters but a
+  good squad is never a formality.
+
+| how you draft | p10 | median | p90 | 38-0 | unbeaten |
+|---|---:|---:|---:|---:|---:|
+| random players, random slots | 0 | 4 | 11 | 0% | 0% |
+| random players, sensible slots | 3 | 10 | 23 | 0% | 0% |
+| best available, best slot | 23 | **33** | 37 | **3.2%** | 14.1% |
+| pool's theoretical best seven | — | — | — | 6.8% | — |
+
+38-0 is now **8× rarer** for a well-drafted side, the median record dropped from
+36 to 33, and the worst tenth of well-drafted runs finish on 23 or fewer. A good
+side is usually denied by draws rather than defeats, which is the Invincibles
+story exactly.
+
+### 4. Inter Tight
+
+Used for every role — display, interface and figures. **Not** linked from Google
+Fonts: the variable face (400-900) is subset with `pyftsubset` to the Latin
+ranges the game uses and embedded as a woff2 data URI, ~61KB, so the file keeps
+its defining property of making no network calls. SIL Open Font License 1.1.
+
+Player names now carry their real diacritics (Özil, Čech, Vidić, Højlund), which
+the embedded latin-ext subset covers.
+
+---
+
+## Deliberate deviation from the brief
+
+**The brief asked for a median random team around 18-24 wins. It is now 10.**
+
+Those two targets are not jointly satisfiable. The 18-24 band was calibrated when
+a spin offered eight players and the season was far gentler. With the whole
+roster on offer and the difficulty you asked for, a well-drafted side sits around
+rating 88 and a random-but-sensible one around 62 — and no single response curve
+puts the first at ~33 wins and the second at ~20 without making the 26-point
+rating gap almost meaningless, which would gut the draft.
+
+Your instruction to make it harder is the newer one, so it won. The test that
+encoded the old band has been retargeted with a comment pointing here. If you
+would rather protect the 18-24 band, the dial is `CONFIG.CURVE.START` — drop it
+back toward 45 and random teams recover, at the cost of well-drafted sides
+climbing back toward 36.
+
+---
+
+## Stubbed / out of scope
+
+- No formation choice, no substitutes, no per-match narrative — the season
+  resolves to a W/D/L string, not events.
+- Sound is on by default. It only ever fires after a tap, and the preference is
+  remembered.
+- `tools/run-tests.mjs` is a dev-only convenience that lifts the `<script>` out
+  of `index.html` and runs the same `runTests()` in Node, for tuning without a
+  browser. The game does not need it and does not know about it.
+
+---
 
 ## REVIEW flags — please audit
 
-These are the pools and calls I am least certain about. All are in the `CLUBS`
-block and carry matching `// REVIEW:` or `// NOTE:` comments in the file.
-
-1. **`Man City` / `2000s`** — pre-takeover City churned squads constantly. The
-   pool is deliberately short (10 players) rather than padded with
-   half-remembered squad men.
-2. **`Everton` / `2020s`** — the pool I am least confident about: relegation
-   fights, a points deduction, very heavy churn.
-3. **`Gareth Bale` in `Tottenham` / `2000s` is `DEF`** — correct for the era, he
+1. **`Man City` / `2000s` (38)** — pre-takeover City churned squads constantly
+   and were relegated in 2001. Still the thinnest cell in the file, deliberately.
+2. **`Everton` / `2020s`** — relegation fights, a points deduction and very
+   heavy churn. The pool I am least confident about.
+3. **`Aston Villa` / `2010s` (38)** — Villa were in the Championship from 2016 to
+   2019, so only genuine top-flight Villa players are listed.
+4. **`Leicester` has no `2000s` cell** — relegated in 2002 and again in 2004 and
+   outside the top flight for the rest of the decade. An intentional sparse cell;
+   the slot machine never lands there.
+5. **`Gareth Bale` is `DEF` in `Tottenham` / `2000s`** — correct for the era, he
    arrived as a left-back, but it reads oddly next to his `FWD` entry in the
-   2010s pool. Intentional. Say if you would rather he were `MID`.
-4. **`Leicester` has no `2000s` cell at all** — relegated in 2002 and again in
-   2004, and outside the top flight for the rest of the decade. An intentional
-   sparse cell, not missing data. The slot machine simply never lands there.
-5. **`Aston Villa` / `2010s` is thin (11 players)** — Villa were in the
-   Championship from 2016 to 2019, so only genuine top-flight Villa players are
-   listed.
-6. **Ratings generally.** All 0-100 numbers are game ratings, my best judgment.
-   No real-world statistics are asserted anywhere. They are the most subjective
-   thing in the repo and the easiest thing for you to tune — one number per
-   player, all in one block.
+   2010s pool. Intentional.
+6. **Very recent signings** across the 2020s cells are the most likely place for
+   an error, since those squads are still moving.
+7. **Ratings generally** — all 0-100 numbers are game ratings, my best judgment,
+   and the most subjective thing in the repo. One number per player, all in one
+   block.
+
+Two rows I caught and removed during this pass, as a flavour of the error mode:
+a set-piece coach listed as a City forward, and Sébastien Squillaci placed in
+Arsenal's 2000s when he signed in 2010. Worth a spot-check of your own.
+
+---
 
 ## Open questions for you
 
-1. **Is 11.7% the right 38-0 rate for a good draft?** It currently means a
-   player who drafts well is unbeaten about a third of the time and perfect
-   roughly once in nine runs. Easy to move: `CONFIG.CURVE.GAUNTLET_PEAK` is the
-   main dial (raise it to make the run-in harder).
-2. **Should skipping cost something?** Right now a club-skip and an era-skip are
-   free and independent. A single shared skip, or a skip that costs you a pick,
-   would make the decision sharper.
-3. **Should the daily draft be one-and-done?** It currently lets you replay the
-   same day as often as you like, which undercuts the shared-seed idea. Locking
-   it to one attempt per day would need a date check in `localStorage`.
-4. **Sorting of the offered pool.** Currently grouped by position, then by OVR.
-   Sorting purely by OVR would make the draft faster but less thoughtful.
-5. **Club list.** 11 clubs is more than the brief's ~8. Adding more is purely a
-   data edit — but every new pool is another thing to audit.
-6. **Does the "38-0" wordmark's volt block read as a hyphen or as a scoreline
-   divider?** I intended the latter. Your call.
+1. **Is 3.2% the right 38-0 rate?** `CONFIG.MATCH.MAX_WIN_PROB` is the blunt
+   dial (lower = rarer) and `FORM_SWING` is the interesting one — more swing
+   means more 38-0s *and* more disasters, without moving the median.
+2. **Is a median of 33 still too high?** Raising `CONFIG.CURVE.START` pushes it
+   down fastest.
+3. **Should the daily draft be one-and-done?** It still lets you replay the same
+   day, which undercuts the shared-seed idea.
+4. **Should skipping cost something?** A club-skip and an era-skip are still free
+   and independent.
+5. **Roster sort order.** Currently by line (forwards first, as a team sheet
+   reads), then by rating. Sorting purely by rating would be faster to scan but
+   less thoughtful.

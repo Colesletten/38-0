@@ -3,9 +3,11 @@
 **Draft a truly invincible Premier League team.**
 
 A Premier League spin on the viral NBA "82-0" team-builder. A slot machine spins
-a random club and era; you take one legend from that pool and give them a shirt.
-Do it six times, then a deterministic engine plays your side across a 38-game
+a random club and era; you take one legend from that squad and give them a shirt.
+Do it seven times, then a deterministic engine plays your side across a 38-game
 season and hands back a W-D-L record.
+
+However good your seven are, no match is ever a formality.
 
 Arsenal's 2003-04 Invincibles went unbeaten — and still drew twelve. Nobody has
 ever won all thirty-eight. That is the target.
@@ -36,7 +38,8 @@ index.html?test=1
 Runs the full harness, asserts through `console.assert`, and renders an on-screen
 report. It covers PRNG determinism, data integrity, season bounds
 (`wins + draws + losses === 38` for every lineup including deliberate junk),
-chemistry, the category gates, and the win-distribution curve. 62 checks.
+chemistry, the category gates, the upset ceiling, season fortune, and the
+win-distribution curve. 68 checks.
 
 There is also a dev-only Node runner that lifts the same `runTests()` out of the
 file so the simulation can be tuned without a browser:
@@ -46,32 +49,50 @@ node tools/run-tests.mjs
 node tools/run-tests.mjs "T.notes.join('\n\n')"     # print the win histograms
 ```
 
+## The lineup
+
+Seven slots: **GK, DEF, DEF, MID, MID, FWD, FWD**. It is defined as a flat
+ordered list in `CONFIG.FORMATION`, and `CONFIG.DRAFT.ROUNDS` follows its
+length, so extending to a full XI means adding entries there and nothing else.
+
 ## How the season is decided
 
-Your six players roll up into four phase ratings — **attack, midfield, defence,
-goalkeeping** — scaled by how well each one suits the slot you put them in. A
-chemistry multiplier rewards players who actually shared a dressing room and
-punishes a lopsided squad. That produces one team rating, which meets a rising
-opponent curve whose last ten matches are a genuine title run-in.
+Your seven players roll up into four phase ratings — **attack, midfield,
+defence, goalkeeping** — scaled by how well each one suits the slot you put them
+in. A chemistry multiplier rewards players who actually shared a dressing room
+and punishes a lopsided squad. That produces one team rating, which meets a
+rising opponent curve whose last twelve matches are a genuine title run-in.
 
-Two things stop a good squad coasting:
+Four things stop a good squad coasting:
 
+- **The upset ceiling.** No match is ever more than `MAX_WIN_PROB` certain,
+  whatever your rating. This is the most important constant in the game: it is
+  why 38-0 needs luck on top of a great draft, and the probability shaved off a
+  win is mostly conceded as a draw — which is how the real near-misses have
+  always happened.
+- **Season fortune.** Drawn once from the lineup's own stream and added to the
+  team rating for all 38 matches: the year the ball ran for you, or the year it
+  did not. It is what makes two equally good squads finish differently, and it
+  is reported on the results screen rather than hidden in the engine.
 - **Category gates.** A phase below its threshold bleeds points from matchday 20
   and hard-caps how many wins the season can produce, surrendered from the
   hardest fixtures backwards. You cannot win the league with a hole in you.
-- **An elite curve.** Above a rating threshold the logistic steepens, so at the
-  top of the draft two rating points decide matches.
+- **A shallow response curve.** Rating matters, but not so much that a good
+  squad becomes a formality.
 
 Tuned so that:
 
-| how you draft | median wins | 38-0 rate |
-|---|---:|---:|
-| random players, random slots | 8 | 0% |
-| random players, sensible slots | 22 | 0% |
-| best available, best slot | 36 | 11.7% |
+| how you draft | p10 | median | p90 | 38-0 rate | unbeaten |
+|---|---:|---:|---:|---:|---:|
+| random players, random slots | 0 | 4 | 11 | 0% | 0% |
+| random players, sensible slots | 3 | 10 | 23 | 0% | 0% |
+| best available, best slot | 23 | **33** | 37 | **3.2%** | 14.1% |
+| the pool's theoretical best seven | — | — | — | 6.8% | — |
 
-Every tuning constant lives in one labelled `CONFIG` block at the top of the
-script. Move a number, reload, re-run the histogram.
+A well-drafted side is usually denied by draws rather than defeats, and the
+worst tenth of well-drafted runs still finish on 23 wins or fewer. Every tuning
+constant lives in one labelled `CONFIG` block at the top of the script. Move a
+number, reload, re-run the histogram.
 
 ## Data honesty
 
@@ -86,8 +107,9 @@ confident about was left out rather than guessed, and pools wanting a human audi
 carry `// REVIEW:` comments — all of them are listed in
 [`PROGRESS.md`](PROGRESS.md).
 
-11 clubs, 32 club/era cells, 443 players. Leicester has no 2000s pool because
-they were not in the division for most of it.
+11 clubs, 32 club/era cells, **1,651 players** — a median of 51 per club/era,
+and the whole squad is offered every spin, filtered by line. Leicester has no
+2000s pool because they were not in the division for most of it.
 
 ## Design
 
@@ -96,9 +118,14 @@ with Swiss editorial sports print and the mechanical honesty of an arcade
 cabinet. Ink surfaces, chalk type, a single volt-green accent, tabular numerals
 on everything that is a number, and motion that detents rather than bounces.
 
+The typeface is **Inter Tight**, used for every role — display, interface and
+figures. It is not linked from Google Fonts: the variable face is subset to the
+Latin ranges the game actually uses and embedded as a woff2 data URI, about
+61KB, so the page keeps its defining property of making no network calls at all.
+Inter Tight is licensed under the SIL Open Font License 1.1.
+
 Mobile-first portrait. It is a phone-shaped column at any width, sitting on a
-chalked pitch on desktop. Because the file may make no network calls, every
-glyph is a system font, every crest is generated SVG, and every sound is
+chalked pitch on desktop. Every crest is generated SVG and every sound is
 synthesised with WebAudio on the spot. `prefers-reduced-motion` is honoured
 throughout.
 
@@ -114,6 +141,6 @@ throughout.
 7. TESTS     runTests(), behind ?test=1
 ```
 
-The six-slot lineup (GK, DEF, DEF, MID, MID, FWD) is v1 and is defined as a flat
-ordered list in `CONFIG.FORMATION`. Extending to a full XI means adding entries
-there and nothing else.
+`CONFIG.FORMATION` is the single source of truth for the lineup; the number of
+draft rounds, the slot picker, the lineup strip and the results list all follow
+it.
