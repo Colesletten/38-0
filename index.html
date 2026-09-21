@@ -574,19 +574,64 @@ svg{display:block;}
   padding:13px 2px 0; font-size:12px; color:var(--chalk-dim); }
 .ptsrow b{ font-family:var(--f-mono); font-variant-numeric:tabular-nums; font-weight:700; color:var(--chalk); font-size:16px; letter-spacing:-.02em; }
 
-/* the season, one square per match */
-.season{ display:grid; grid-template-columns:repeat(10,1fr); gap:4px; margin:14px 0 2px; }
-.season i{
-  aspect-ratio:1; border-radius:2.5px; background:var(--ink-700);
-  animation:sq var(--dur-2) var(--ease-out) backwards;
+/* ---- The margin: what the seven were worth against what they took ---- */
+.margin{
+  display:grid; grid-template-columns:1fr 1fr; gap:1px; margin-top:14px;
+  border:1px solid var(--line); border-radius:var(--r-md); overflow:hidden; background:var(--line);
 }
-@keyframes sq{ from{ opacity:0; transform:scale(.55);} to{ opacity:1; transform:none;} }
-.season i[data-r="W"]{ background:var(--volt); }
-.season i[data-r="D"]{ background:var(--amber); }
-.season i[data-r="L"]{ background:var(--flare); }
-.seasonkey{ display:flex; gap:14px; justify-content:center; margin-top:10px; font-size:10px; color:var(--chalk-faint); }
-.seasonkey span{ display:inline-flex; align-items:center; gap:5px; }
-.seasonkey i{ width:8px; height:8px; border-radius:2px; }
+.margin > div{ background:var(--ink-850); padding:13px 14px; }
+.margin .mlabel{
+  font-size:9.5px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--chalk-ghost);
+}
+.margin .mbig{
+  display:block; margin-top:7px; font-variant-numeric:tabular-nums;
+  font-size:30px; font-weight:800; letter-spacing:-.045em; line-height:1; color:var(--chalk);
+}
+.margin .mbig.over{ color:var(--volt); } .margin .mbig.under{ color:var(--flare); }
+
+/* ---- How the season broke, period by period ---- */
+.periods{ display:flex; flex-direction:column; gap:12px; margin-top:4px; }
+.prow .ptop{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; gap:10px; }
+.prow .pname{ font-size:12px; font-weight:700; color:var(--chalk-soft); }
+.prow .pwdl{ font-variant-numeric:tabular-nums; font-size:11.5px; font-weight:700; color:var(--chalk-dim); white-space:nowrap; }
+.prow .pwdl b{ font-weight:800; }
+.prow .pwdl .w{ color:var(--volt); } .prow .pwdl .d{ color:var(--amber); } .prow .pwdl .l{ color:var(--flare); }
+/* stacked bar: 2px of surface between segments, outer ends rounded */
+.pbar{ display:flex; gap:2px; height:9px; }
+.pbar i{ display:block; min-width:2px; background:var(--ink-700); }
+.pbar i:first-child{ border-radius:4px 0 0 4px; } .pbar i:last-child{ border-radius:0 4px 4px 0; }
+.pbar i:only-child{ border-radius:4px; }
+.pbar i.w{ background:var(--volt); } .pbar i.d{ background:var(--amber); } .pbar i.l{ background:var(--flare); }
+.pkey{ display:flex; gap:14px; margin-top:12px; font-size:10px; color:var(--chalk-faint); }
+.pkey span{ display:inline-flex; align-items:center; gap:5px; }
+.pkey i{ width:8px; height:8px; border-radius:2px; }
+
+/* ---- Key men ---- */
+.tiles{ display:flex; flex-direction:column; gap:8px; }
+.tile{
+  display:flex; align-items:center; gap:12px; padding:12px 14px;
+  border:1px solid var(--line); border-radius:var(--r-md); background:var(--ink-850);
+}
+.tile .tkey{
+  flex:none; width:70px; font-size:9.5px; font-weight:700; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--chalk-ghost); line-height:1.35;
+}
+.tile .tbody{ flex:1; min-width:0; }
+.tile .tname{
+  display:block; font-size:14.5px; font-weight:700; color:var(--chalk);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.tile .tsub{ display:block; margin-top:3px; font-size:11px; line-height:1.4; color:var(--chalk-faint); }
+.tile .tnum{ flex:none; font-variant-numeric:tabular-nums; font-size:16px; font-weight:800; letter-spacing:-.03em; color:var(--chalk-dim); }
+.tile .tnum.good{ color:var(--volt); } .tile .tnum.bad{ color:var(--flare); }
+
+/* ---- What to fix ---- */
+.advice{ display:flex; flex-direction:column; gap:1px; border-top:1px solid var(--line); }
+.aitem{ padding:12px 2px; border-bottom:1px solid var(--line); }
+.aitem .ahead{ display:flex; gap:9px; align-items:baseline; font-size:13.5px; font-weight:700; color:var(--chalk); }
+.aitem .anum{ flex:none; font-variant-numeric:tabular-nums; font-size:10.5px; font-weight:800; color:var(--volt); letter-spacing:.04em; }
+.aitem .abody{ margin-top:5px; padding-left:22px; font-size:12px; line-height:1.55; color:var(--chalk-dim); }
 
 /* phase meters with the gate threshold marked */
 .meters{ display:flex; flex-direction:column; gap:11px; margin-top:6px; }
@@ -855,6 +900,22 @@ const CONFIG = {
   GATE_BITE_FROM: 20,       // gates only start costing points from here on
   GATE_CAP_MAX: 20,         // the most wins the gates may strip in total, so a
                             // squad with one hole is wounded, not erased
+
+  /* ---- Season report ----
+     BENCHMARK is what each phase looks like on a side good enough to win the
+     league comfortably. It is the yardstick the report measures your seven
+     against, so "biggest gap" means something concrete rather than "your
+     lowest bar". Move these and the advice moves with them. */
+  REPORT: {
+    BENCHMARK: { attack:86, midfield:82, defense:85, gk:85 },
+    PERIODS: [
+      { name:'Opening',   from:0,  to:13, blurb:'the opening thirteen' },
+      { name:'Midwinter', from:13, to:26, blurb:'the middle of the season' },
+      { name:'Run-in',    from:26, to:38, blurb:'the run-in' },
+    ],
+    GAP_WORTH_MENTIONING: 3,   // a phase this far under benchmark gets called out
+    WEAK_LINK_MARGIN: 3,       // a player this far under replacement is a problem
+  },
 
   /* ---- Verdict tiers (first match wins, so order matters) ---- */
   VERDICTS: [
@@ -3184,6 +3245,183 @@ function fortuneOf(form){
 /** Points, for the results screen. */
 function pointsFrom(r){ return r.wins * 3 + r.draws; }
 
+/**
+ * What an ordinary pick is worth in a slot: the median score among the players
+ * in the pool who play that position naturally.
+ *
+ * Deliberately NOT the median across everybody. Measured that way, the typical
+ * "goalkeeper" is an outfielder on the emergency floor, so any real keeper
+ * towers over replacement level and wins top player in every single report.
+ * Comparing a keeper to other keepers is the question actually being asked.
+ */
+let REPLACEMENT = null;
+function replacementScore(role){
+  if(!REPLACEMENT){
+    REPLACEMENT = {};
+    for(const slot of CONFIG.FORMATION){
+      if(REPLACEMENT[slot.role] !== undefined) continue;
+      const scores = [];
+      for(const cell of POOL.cells) for(const p of cell.players){
+        if(p.position !== slot.role) continue;
+        scores.push(phaseScore(effectiveRatings(p, slot.role), CONFIG.PHASE[slot.role]) *
+                    fitFor(slot.role, p.position));
+      }
+      scores.sort((a,b) => a - b);
+      REPLACEMENT[slot.role] = scores.length ? scores[Math.floor(scores.length / 2)] : 0;
+    }
+  }
+  return REPLACEMENT[role];
+}
+
+/** What one player actually contributed in the slot you gave them, against what
+    an ordinary pick at that slot would have. */
+function contributionOf(player, slotRole){
+  const score = phaseScore(effectiveRatings(player, slotRole), CONFIG.PHASE[slotRole]) *
+                fitFor(slotRole, player.position);
+  const replacement = replacementScore(slotRole);
+  return { score, replacement, added: score - replacement };
+}
+
+/**
+ * The season, explained. Every figure here is derived from the same numbers the
+ * engine actually used, so the report can never flatter or contradict the result
+ * it is describing.
+ *
+ * @param {Object} result  what simulateSeason returned
+ * @param {Object} lineup  slot id -> player
+ * @param {Array}  picks   optional draft history, for "you passed on" advice
+ */
+function seasonReport(result, lineup, picks){
+  const R = CONFIG.REPORT;
+  const a = result.analysis;
+  const detail = result.detail || [];
+  const L = lineup || {};
+
+  /* ---- what the seven were worth, against what they took ---- */
+  let expWins = 0, expPoints = 0;
+  for(const d of detail){ expWins += d.pWin; expPoints += 3*d.pWin + d.pDraw; }
+
+  /* ---- where the season went ---- */
+  const periods = R.PERIODS.map(per => {
+    const slice = result.results.slice(per.from, per.to);
+    const w = slice.filter(c => c === 'W').length;
+    const d = slice.filter(c => c === 'D').length;
+    const l = slice.filter(c => c === 'L').length;
+    return Object.assign({}, per, { played:slice.length, w, d, l,
+      points: w*3 + d, dropped: slice.length*3 - (w*3 + d) });
+  });
+  const worstPeriod = periods.slice().sort((x,y) => y.dropped - x.dropped)[0];
+  const bestPeriod  = periods.slice().sort((x,y) => x.dropped - y.dropped)[0];
+
+  /* ---- who carried it and who did not ---- */
+  const players = CONFIG.FORMATION
+    .filter(slot => L[slot.id])
+    .map(slot => {
+      const p = L[slot.id];
+      const c = contributionOf(p, slot.role);
+      return { slot, player:p, score:c.score, replacement:c.replacement, added:c.added,
+        effectiveness: slotEffectiveness(p, slot.role),
+        outOfPosition: slot.role !== p.position };
+    })
+    .sort((x, y) => y.added - x.added);
+  const best  = players[0] || null;
+  const worst = players.length > 1 ? players[players.length - 1] : null;
+
+  /* ---- which phase was furthest from a title-winning standard ---- */
+  const PHASE_LABEL = { attack:'Attack', midfield:'Midfield', defense:'Defence', gk:'Goalkeeping' };
+  const gaps = Object.keys(R.BENCHMARK).map(key => ({
+    phase: key, label: PHASE_LABEL[key],
+    value: a.phases[key], benchmark: R.BENCHMARK[key],
+    gap: R.BENCHMARK[key] - a.phases[key],
+  })).sort((x, y) => y.gap - x.gap);
+  const biggestGap = gaps[0];
+  const strongest  = gaps[gaps.length - 1];
+
+  /* ---- the best player you turned down ---- */
+  let missed = null;
+  if(Array.isArray(picks)){
+    for(const pk of picks){
+      if(!pk || !Array.isArray(pk.offered)) continue;
+      const slot = CONFIG.FORMATION.find(sl => sl.id === pk.slotId);
+      if(!slot) continue;
+      const taken = contributionOf(pk.player, slot.role).score;
+      for(const alt of pk.offered){
+        if(alt.name === pk.player.name) continue;
+        const gain = contributionOf(alt, slot.role).score - taken;
+        if(gain > 0 && (!missed || gain > missed.gain)){
+          missed = { round: pk.round, slot, taken: pk.player, alternative: alt, gain };
+        }
+      }
+    }
+  }
+
+  /* ---- what to fix, worst problem first ---- */
+  const advice = [];
+  for(const g of a.gates){
+    if(g.failing) advice.push({
+      weight: 100 + g.shortfall,
+      head: g.label + ' was below the line',
+      body: g.label + ' came in at ' + g.value.toFixed(0) + ', under the ' + g.min +
+            ' a side needs. That is what started costing you points from matchday ' +
+            (CONFIG.GATE_BITE_FROM + 1) + '.',
+    });
+  }
+  for(const pl of players){
+    if(pl.outOfPosition && pl.effectiveness < 0.92) advice.push({
+      weight: 80 + (1 - pl.effectiveness) * 40,
+      head: pl.player.name + ' played out of position',
+      body: 'A ' + pl.player.position + ' in a ' + pl.slot.short + ' shirt is worth about ' +
+            Math.round(pl.effectiveness * 100) + '% of himself. You lost the rest.',
+    });
+  }
+  // Every phase short of the standard, not only the worst one.
+  for(const g of gaps){
+    if(g.gap <= R.GAP_WORTH_MENTIONING) continue;
+    advice.push({
+      weight: 60 + g.gap,
+      head: g.label + (g === biggestGap ? ' was your weak suit' : ' was short too'),
+      body: g.label + ' finished on ' + g.value.toFixed(0) + ' against the ' + g.benchmark +
+            ' a title-winning seven carries. Spend a pick there next time.',
+    });
+  }
+
+  // The run-in is where a squad's holes actually cost it points.
+  if(worstPeriod && worstPeriod.name === 'Run-in' && worstPeriod.dropped >= 6){
+    advice.push({
+      weight: 30 + worstPeriod.dropped,
+      head: 'The run-in caught you',
+      body: 'You dropped ' + worstPeriod.dropped + ' of your ' +
+            (periods.reduce((n,pp)=>n+pp.dropped,0)) + ' lost points in the last ' +
+            worstPeriod.played + ' matches, when the fixtures are hardest and any phase ' +
+            'below its line starts to tell.',
+    });
+  }
+  if(worst && worst.added < -R.WEAK_LINK_MARGIN) advice.push({
+    weight: 50 + Math.abs(worst.added),
+    head: worst.player.name + ' was below replacement level',
+    body: 'He gave you about ' + Math.abs(worst.added).toFixed(0) +
+          ' less than an ordinary ' + worst.slot.short + ' would have.',
+  });
+  if(missed && missed.gain > 4) advice.push({
+    weight: 40 + missed.gain,
+    head: 'You passed on ' + missed.alternative.name,
+    body: 'In round ' + (missed.round + 1) + ' he was on the same board as ' +
+          missed.taken.name + ', and would have been worth about ' + missed.gain.toFixed(0) +
+          ' more at ' + missed.slot.short + '.',
+  });
+  if(a.chem < 0.97) advice.push({
+    weight: 20 + (1 - a.chem) * 60,
+    head: a.chem < 0.88 ? 'The seven did not fit together' : 'Chemistry left a little on the table',
+    body: 'Chemistry landed at ' + (a.chem*100).toFixed(0) + '%. Players from the same club and ' +
+          'era help, and so does a squad without one phase miles ahead of the rest.',
+  });
+  advice.sort((x, y) => y.weight - x.weight);
+
+  return { expWins, expPoints, luckWins: result.wins - expWins,
+    periods, worstPeriod, bestPeriod, players, best, worst,
+    gaps, biggestGap, strongest, missed, advice: advice.slice(0, 4) };
+}
+
 /** First matching verdict tier. */
 function verdictFor(r){
   for(const v of CONFIG.VERDICTS){
@@ -3678,7 +3916,10 @@ function assignPending(slotId){
   GAME.lineup[slotId] = player;
   GAME.usedNames.add(player.name);
   if(GAME.cell) GAME.usedCells.add(cellKey(GAME.cell.club, GAME.cell.era));
-  GAME.picks.push({ round: GAME.round, slotId, player, club: player.club, era: player.era });
+  GAME.picks.push({
+    round: GAME.round, slotId, player, club: player.club, era: player.era,
+    offered: GAME.offered.slice(),      // what else was on the board at the time
+  });
   GAME.pending = null;
   GAME.justFilled = slotId;
   GAME.round++;
@@ -3730,6 +3971,126 @@ function recordBest(result){
 
 
 /* ---- Draft self-checks ---------------------------------------------------- */
+function testReport(){
+  const rnd = mulberry32(8080);
+  const lu = smartLineup(rnd);
+  const res = simulateSeason(lu);
+  const rep = seasonReport(res, lu, null);
+
+  check('REPORT: expected wins is a sane number bounded by the season',
+    rep.expWins > 0 && rep.expWins <= CONFIG.SEASON.MATCHES,
+    'expected ' + rep.expWins.toFixed(1) + ' vs actual ' + res.wins);
+
+  check('REPORT: the periods cover all 38 matches exactly once',
+    rep.periods.reduce((n,p) => n + p.played, 0) === CONFIG.SEASON.MATCHES &&
+    rep.periods.reduce((n,p) => n + p.w + p.d + p.l, 0) === CONFIG.SEASON.MATCHES);
+
+  check('REPORT: each period W/D/L matches the actual results string',
+    rep.periods.every(p => {
+      const slice = res.results.slice(p.from, p.to);
+      return p.w === slice.filter(c=>c==='W').length &&
+             p.d === slice.filter(c=>c==='D').length &&
+             p.l === slice.filter(c=>c==='L').length;
+    }));
+
+  check('REPORT: points dropped per period adds up to the season total',
+    rep.periods.reduce((n,p) => n + p.points, 0) === pointsFrom(res),
+    rep.periods.map(p=>p.points).join('+') + ' = ' + pointsFrom(res));
+
+  check('REPORT: one player is named top and one weakest, and they differ',
+    rep.best && rep.worst && rep.best.player.name !== rep.worst.player.name,
+    rep.best.player.name + ' / ' + rep.worst.player.name);
+
+  check('REPORT: the top player really did contribute the most',
+    rep.players.every(pl => pl.added <= rep.best.added + 1e-9));
+
+  check('REPORT: the biggest gap is the phase furthest under its benchmark',
+    rep.gaps.every(g => g.gap <= rep.biggestGap.gap + 1e-9) &&
+    rep.gaps.every(g => g.gap >= rep.strongest.gap - 1e-9),
+    rep.biggestGap.label + ' short by ' + rep.biggestGap.gap.toFixed(1));
+
+  check('REPORT: advice is ordered worst-problem-first and capped at four',
+    rep.advice.length <= 4 &&
+    rep.advice.every((ad,i) => i === 0 || rep.advice[i-1].weight >= ad.weight));
+
+  // A deliberately holed squad must be told exactly what is wrong with it.
+  (() => {
+    const holed = uniformLineup(88);
+    for(const id of CONFIG.SLOTS_BY_ROLE.DEF) holed[id] = {
+      name:'Winger ' + id, club:'X', era:'2020s', position:'FWD',
+      ratings:{ attack:92, creativity:86, defense:10, physical:70, gk:0 },
+    };
+    const rr = simulateSeason(holed);
+    const rp = seasonReport(rr, holed, null);
+    check('REPORT: a squad with no defence is told its defence is the problem',
+      rp.biggestGap.phase === 'defense' &&
+      rp.advice.some(ad => /Defence|out of position/i.test(ad.head)),
+      'biggest gap: ' + rp.biggestGap.label + '; top advice: ' + (rp.advice[0]||{}).head);
+  })();
+
+  // The "you passed on" line must only ever name a genuinely better player.
+  (() => {
+    newGame('daily');
+    let guard = 0;
+    while(GAME.screen === 'draft' && guard++ < 50){
+      GAME.cell = spinCell();
+      GAME.offered = offerFrom(GAME.cell);
+      GAME.pending = GAME.offered[GAME.offered.length - 1];   // deliberately poor picks
+      assignPending(openSlots()[0].id);
+    }
+    const rp = seasonReport(GAME.result, GAME.lineup, GAME.picks);
+    const ok = !rp.missed || (() => {
+      const slot = rp.missed.slot;
+      return contributionOf(rp.missed.alternative, slot.role).score >
+             contributionOf(rp.missed.taken, slot.role).score;
+    })();
+    check('REPORT: the player you passed on was genuinely the better option', ok,
+      rp.missed ? rp.missed.alternative.name + ' over ' + rp.missed.taken.name +
+        ' (+' + rp.missed.gain.toFixed(0) + ')' : 'no missed pick found');
+    check('REPORT: a deliberately bad draft gets plenty to fix',
+      rp.advice.length >= 2, rp.advice.length + ' items of advice');
+    newGame('daily');
+  })();
+
+  // Junk must not crash the report.
+  let safe = true;
+  try{
+    for(const junk of [{}, null, undefined]){
+      seasonReport(simulateSeason(junk), junk, null);
+      seasonReport(simulateSeason(junk), junk, [{}, null]);
+    }
+  }catch(e){ safe = false; }
+  check('REPORT: an empty or invalid lineup does not crash the report', safe);
+
+  check('REPORT: replacement level is set by players who play that position',
+    CONFIG.FORMATION.every(sl => replacementScore(sl.role) > 0));
+
+  // Replacement level must be a real player's worth, not an emergency stand-in,
+  // or every report crowns the goalkeeper.
+  (() => {
+    const medianOf = role => {
+      const v = [];
+      for(const cell of POOL.cells) for(const p of cell.players){
+        if(p.position === role) v.push(phaseScore(effectiveRatings(p, role), CONFIG.PHASE[role]));
+      }
+      v.sort((x,y)=>x-y); return v[Math.floor(v.length/2)];
+    };
+    check('REPORT: a typical keeper is worth about replacement level in goal',
+      Math.abs(replacementScore('GK') - medianOf('GK')) < 1e-6,
+      'replacement GK = ' + replacementScore('GK').toFixed(1));
+
+    // Across many well-drafted sides, top player should not always be the keeper.
+    const rr = mulberry32(5150); const tops = {};
+    for(let i=0;i<120;i++){
+      const lu = smartLineup(rr);
+      const rp = seasonReport(simulateSeason(lu), lu, null);
+      if(rp.best) tops[rp.best.slot.role] = (tops[rp.best.slot.role]||0) + 1;
+    }
+    check('REPORT: top player is not always a goalkeeper',
+      (tops.GK || 0) < 60, JSON.stringify(tops));
+  })();
+}
+
 function testDraft(){
   // The daily seed must produce the same opening spin every time.
   const firstOf = () => {
@@ -4241,13 +4602,36 @@ function viewResults(){
   const best = GAME.prevBest;
   const pts = pointsFrom(r);
   const isBest = !best || pts > best.points;
+  const rep = seasonReport(r, GAME.lineup, GAME.picks);
+  const fort = fortuneOf(r.form);
 
-  const RESULT_WORD = { W:'Won', D:'Drawn', L:'Lost' };
-  const squares = r.results.map((c,i) =>
-    '<i data-r="' + c + '" style="animation-delay:' + (200 + i*22) + 'ms" ' +
-    'title="Matchday ' + (i+1) + ' &middot; ' + RESULT_WORD[c] + '" ' +
-    'aria-label="Matchday ' + (i+1) + ', ' + RESULT_WORD[c] + '"></i>').join('');
+  /* ---- the margin: what the seven were worth vs what they took ---- */
+  const delta = r.wins - rep.expWins;
+  const marginLine = Math.abs(delta) < 1.2
+    ? 'You finished almost exactly where this squad deserved to.'
+    : delta > 0
+      ? 'You took ' + delta.toFixed(1) + ' more wins than this squad deserved.'
+      : 'You left ' + Math.abs(delta).toFixed(1) + ' wins on the pitch.';
+  const fpos = clamp(((r.form + CONFIG.MATCH.FORM_SWING) / (2 * CONFIG.MATCH.FORM_SWING)) * 100, 0, 100);
 
+  /* ---- how the season broke ---- */
+  const seg = (n, cls) => n > 0 ? '<i class="' + cls + '" style="flex:' + n + '"></i>' : '';
+  const periodHTML = rep.periods.map(per =>
+    '<div class="prow">' +
+      '<div class="ptop"><span class="pname">' + esc(per.name) + '</span>' +
+        '<span class="pwdl"><b class="w">' + per.w + 'W</b> <b class="d">' + per.d +
+        'D</b> <b class="l">' + per.l + 'L</b></span></div>' +
+      '<div class="pbar">' + seg(per.w,'w') + seg(per.d,'d') + seg(per.l,'l') + '</div>' +
+    '</div>').join('');
+  const brokeLine = rep.worstPeriod.dropped === 0
+    ? 'You did not drop a single point all season.'
+    : 'Most of the damage was done in ' + rep.worstPeriod.blurb + ', where ' +
+      rep.worstPeriod.dropped + ' points went begging. ' +
+      (rep.bestPeriod.dropped === 0
+        ? 'You were flawless through ' + rep.bestPeriod.blurb + '.'
+        : rep.bestPeriod.name + ' was your strongest spell.');
+
+  /* ---- the side ---- */
   const phaseRows = [
     { key:'attack',   label:'Attack' },
     { key:'midfield', label:'Midfield' },
@@ -4267,16 +4651,56 @@ function viewResults(){
     '</div>';
   }).join('');
 
+  /* ---- key men ---- */
+  const signed = n => (n >= 0 ? '+' : '&minus;') + Math.abs(n).toFixed(0);
+  const tile = (key, name, sub, num, cls) =>
+    '<div class="tile"><span class="tkey">' + key + '</span>' +
+      '<span class="tbody"><span class="tname">' + esc(name) + '</span>' +
+        '<span class="tsub">' + sub + '</span></span>' +
+      (num ? '<span class="tnum ' + (cls||'') + '">' + num + '</span>' : '') +
+    '</div>';
+
+  const tilesHTML =
+    (rep.best ? tile('Top player', rep.best.player.name,
+        esc(rep.best.slot.name) + ' &middot; ' + esc(rep.best.player.club) + ' ' + esc(rep.best.player.era),
+        signed(rep.best.added), 'good') : '') +
+    (rep.worst ? tile(rep.worst.added < 0 ? 'Weakest link' : 'Least impact', rep.worst.player.name,
+        rep.worst.outOfPosition
+          ? 'Out of position at ' + rep.worst.slot.short + ', worth ' +
+            Math.round(rep.worst.effectiveness*100) + '% of himself'
+          : esc(rep.worst.slot.name) + ' &middot; against an ordinary pick',
+        signed(rep.worst.added), rep.worst.added >= 0 ? '' : 'bad') : '') +
+    tile('Biggest gap', rep.biggestGap.label,
+      'You had ' + rep.biggestGap.value.toFixed(0) + ' where a champion carries ' + rep.biggestGap.benchmark,
+      signed(-rep.biggestGap.gap), rep.biggestGap.gap > 0 ? 'bad' : 'good') +
+    tile('Strongest', rep.strongest.label,
+      'The best part of this side by some way',
+      signed(-rep.strongest.gap), rep.strongest.gap > 0 ? '' : 'good');
+
+  /* ---- what to fix ---- */
+  const adviceHTML = rep.advice.length
+    ? rep.advice.map((ad, i) =>
+        '<div class="aitem"><div class="ahead"><span class="anum">' +
+          String(i+1).padStart(2,'0') + '</span><span>' + esc(ad.head) + '</span></div>' +
+          '<p class="abody">' + esc(ad.body) + '</p></div>').join('')
+    : '<div class="aitem"><div class="ahead"><span class="anum">00</span>' +
+      '<span>Nothing to fix</span></div>' +
+      '<p class="abody">Every phase cleared its line, everyone played where they should, and the ' +
+      'seven fitted together. There was nothing left on the table.</p></div>';
+
+  /* ---- the squad ---- */
   const xiRows = CONFIG.FORMATION.map(slot => {
     const p = GAME.lineup[slot.id];
     if(!p) return '';
     const eff = slotEffectiveness(p, slot.role);
+    const c = contributionOf(p, slot.role);
     return '<div class="xirow">' +
       '<span class="xslot">' + slot.short + '</span>' +
       '<span class="xname">' + esc(p.name) + '</span>' +
       '<span class="xclub">' + esc((CLUB_META[p.club]||{}).code || p.club) + ' &middot; ' + esc(p.era) + '</span>' +
       (slot.role !== p.position
-        ? '<span class="xfit ' + effClass(eff) + '">' + Math.round(eff*100) + '%</span>' : '') +
+        ? '<span class="xfit ' + effClass(eff) + '">' + Math.round(eff*100) + '%</span>'
+        : '<span class="xfit ' + (c.added >= 0 ? 'ok' : 'warn') + '">' + signed(c.added) + '</span>') +
     '</div>';
   }).join('');
 
@@ -4293,25 +4717,45 @@ function viewResults(){
         '<div class="sl sl--l"><b data-count="' + r.losses + '">0</b><span>Lost</span></div>' +
       '</div>' +
       '<div class="ptsrow"><span>Points</span><b data-count="' + pts + '">0</b></div>' +
-      '<div class="season" role="list" aria-label="Season results, matchday 1 to ' +
-        CONFIG.SEASON.MATCHES + '">' + squares + '</div>' +
-      '<div class="seasonkey">' +
+      (isBest ? '<div class="bestchip" style="margin-top:14px">New personal best</div>' : '') +
+
+      '<div class="sechead"><h2>The margin</h2><span class="rule"></span>' +
+        '<span class="label">' + esc(fort.label) + '</span></div>' +
+      '<div class="margin">' +
+        '<div><span class="mlabel">Worth</span><span class="mbig">' + rep.expWins.toFixed(1) + '</span></div>' +
+        '<div><span class="mlabel">Took</span><span class="mbig ' + (delta >= 0 ? 'over' : 'under') + '">' +
+          r.wins + '</span></div>' +
+      '</div>' +
+      '<p class="note" style="margin-top:10px">' + esc(marginLine) + ' ' + esc(fort.line) + '</p>' +
+      '<div class="fortune" style="margin-top:12px">' +
+        '<div class="ftrack"><span class="fmark" style="left:' + fpos.toFixed(1) + '%"></span></div>' +
+        '<div class="fends"><span>Cursed</span><span>Even</span><span>Charmed</span></div>' +
+      '</div>' +
+
+      '<div class="sechead"><h2>How it broke</h2><span class="rule"></span>' +
+        '<span class="label">' + pts + ' of ' + (CONFIG.SEASON.MATCHES*3) + ' pts</span></div>' +
+      '<div class="periods">' + periodHTML + '</div>' +
+      '<div class="pkey">' +
         '<span><i style="background:var(--volt)"></i>Won</span>' +
         '<span><i style="background:var(--amber)"></i>Drawn</span>' +
         '<span><i style="background:var(--flare)"></i>Lost</span>' +
       '</div>' +
-      (isBest ? '<div class="bestchip" style="margin-top:16px">New personal best</div>' : '') +
+      '<p class="note" style="margin-top:10px">' + esc(brokeLine) + '</p>' +
 
-      '<div class="sechead"><h2>Where it was won</h2><span class="rule"></span></div>' +
+      '<div class="sechead"><h2>The side</h2><span class="rule"></span>' +
+        '<span class="label">Rating ' + a.rating.toFixed(0) + '</span></div>' +
       '<div class="meters">' + phaseRows + '</div>' +
       '<p class="note" style="margin-top:12px">Chemistry <b style="color:var(--chalk-soft)">' +
         (a.chem*100).toFixed(0) + '%</b> &middot; ' +
         (a.pairs ? a.pairs + ' shared dressing room' + (a.pairs>1?'s':'') : 'no shared dressing rooms') +
         ' &middot; ' + a.eraCount + ' era' + (a.eraCount===1?'':'s') + '</p>' +
+      '<div class="tiles" style="margin-top:14px">' + tilesHTML + '</div>' +
 
-      fortuneHTML(r) +
+      '<div class="sechead"><h2>What to fix</h2><span class="rule"></span></div>' +
+      '<div class="advice">' + adviceHTML + '</div>' +
 
-      '<div class="sechead"><h2>Your ' + squadWord() + '</h2><span class="rule"></span></div>' +
+      '<div class="sechead"><h2>Your ' + squadWord() + '</h2><span class="rule"></span>' +
+        '<span class="label">vs a replacement pick</span></div>' +
       '<div class="xi">' + xiRows + '</div>' +
       '<p class="note" style="margin-top:14px">' +
         (GAME.mode === 'daily' ? 'Daily draft &middot; ' + esc(GAME.seedKey) : 'Free play') +
@@ -4327,26 +4771,10 @@ function viewResults(){
   '</div>';
 }
 
-
 /** The squad size in words, so the heading follows CONFIG.FORMATION. */
 function squadWord(){
   const n = CONFIG.FORMATION.length;
   return ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven'][n] || String(n);
-}
-
-/** The season's luck, as a scale with a marker on it. A squad is only half the
-    story now, so the other half gets shown rather than hidden in the engine. */
-function fortuneHTML(r){
-  const swing = CONFIG.MATCH.FORM_SWING;
-  const pos = clamp(((r.form + swing) / (2 * swing)) * 100, 0, 100);
-  const f = fortuneOf(r.form);
-  return '<div class="sechead"><h2>How it fell</h2><span class="rule"></span>' +
-      '<span class="label">' + esc(f.label) + '</span></div>' +
-    '<div class="fortune">' +
-      '<div class="ftrack"><span class="fmark" style="left:' + pos.toFixed(1) + '%"></span></div>' +
-      '<div class="fends"><span>Cursed</span><span>Even</span><span>Charmed</span></div>' +
-      '<p class="note" style="margin-top:10px">' + esc(f.line) + '</p>' +
-    '</div>';
 }
 
 /* ============================================================================
@@ -4655,6 +5083,7 @@ function runTests(){
   if(typeof testData === 'function') testData();
   if(typeof testSim  === 'function') testSim();
   if(typeof testDraft === 'function') testDraft();
+  if(typeof testReport === 'function') testReport();
   T.running = false;
   if(typeof document !== 'undefined') renderTestReport();
   const failed = T.results.filter(r=>!r.pass).length;

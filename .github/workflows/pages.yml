@@ -56,8 +56,24 @@ jobs:
           fi
 
       - uses: actions/configure-pages@v5
+        id: configure
+        continue-on-error: true
         with:
           enablement: true
+
+      # The Actions token is not allowed to create a Pages site, so the very
+      # first deploy needs a one-off switch flipped by someone with admin rights.
+      - name: Explain if Pages has not been switched on yet
+        if: steps.configure.outcome == 'failure'
+        run: |
+          echo "::error::GitHub Pages is not enabled for this repository, and the"
+          echo "::error::Actions token is not permitted to enable it."
+          echo ""
+          echo "A repository admin needs to do this once:"
+          echo "  Settings -> Pages -> Build and deployment -> Source: GitHub Actions"
+          echo ""
+          echo "Then re-run this workflow. Everything else here already passed."
+          exit 1
 
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -9,7 +9,7 @@ in [`SPEC.md`](SPEC.md); how to play and how it works is in
 All six milestones from the original brief are done, plus a second round of
 changes from playtest feedback.
 
-**68/68 self-checks green.** Verified in Chromium at 360×640, 390×844 and
+**83/83 self-checks green.** Verified in Chromium at 360×640, 390×844 and
 1440×900, with `prefers-reduced-motion`, and opened directly from `file://`.
 A Playwright network audit confirms the page still makes exactly **one** HTTP
 request: the document itself.
@@ -82,6 +82,49 @@ its defining property of making no network calls. SIL Open Font License 1.1.
 
 Player names now carry their real diacritics (Özil, Čech, Vidić, Højlund), which
 the embedded latin-ext subset covers.
+
+### 5. The results screen is now a report
+
+The old screen showed a 38-square grid of match results, which told you what
+happened but never why. It has been replaced with an explanation, all of it
+derived from the same numbers the engine actually used so it can never flatter
+or contradict the result:
+
+- **The margin** — what the seven were *worth* (summed win probability) against
+  what they took, with the season's fortune on the same scale.
+- **How it broke** — the season split into opening / midwinter / run-in, each
+  with its W-D-L and a stacked bar, and a line naming where the points went.
+- **The side** — phase meters with their gate thresholds marked, plus four
+  tiles: top player, least impactful (or weakest link, if they were genuinely
+  below replacement), biggest gap against a title-winning benchmark, and
+  strongest suit.
+- **What to fix** — up to four ranked, concrete items: failing gates, players
+  out of position, phases short of the benchmark, a player you passed on who was
+  on the same board, and chemistry.
+- **Your seven** — each pick with what they added over a replacement-level
+  player at that slot.
+
+Player value is measured against the median player *who plays that position*,
+not the median of everyone. Measured the other way the typical "goalkeeper" is
+an outfielder on the emergency floor, so any real keeper towers over replacement
+and wins top player in every single report — a bug caught by exactly that test.
+
+The emoji grid is still what the share button copies; it just no longer occupies
+the screen.
+
+---
+
+## Deployment
+
+`.github/workflows/pages.yml` publishes `index.html` to GitHub Pages on any push
+that touches it, gated on the test harness passing and on the file containing no
+external script or stylesheet.
+
+**It needs one manual step before the first deploy.** The Actions token is not
+permitted to create a Pages site, so a repository admin must set
+**Settings → Pages → Build and deployment → Source: GitHub Actions** once. The
+workflow already ran and failed at exactly that point, with every other step
+green. After the switch is flipped, re-run it and it is automatic from then on.
 
 ---
 
@@ -156,3 +199,6 @@ Arsenal's 2000s when he signed in 2010. Worth a spot-check of your own.
 5. **Roster sort order.** Currently by line (forwards first, as a team sheet
    reads), then by rating. Sorting purely by rating would be faster to scan but
    less thoughtful.
+6. **Report benchmarks.** `CONFIG.REPORT.BENCHMARK` defines what "a title-winning
+   seven" looks like per phase, and all the gap advice hangs off it. Those four
+   numbers are a judgment call worth your eye.

@@ -29,6 +29,12 @@ interface, artwork and sound — is one self-contained HTML file that makes exac
 - **Free play** — reseeds every game.
 - **Copy result** — puts a shareable emoji season grid on your clipboard.
 
+The results screen is a report, not a scoreboard: what the seven were *worth*
+against what they took, where in the season the points went, which phase fell
+short of a title-winning standard, your best and least valuable picks measured
+against a replacement-level player at the same slot, and a ranked list of what
+to fix next time.
+
 ## Self-tests
 
 ```
@@ -38,8 +44,8 @@ index.html?test=1
 Runs the full harness, asserts through `console.assert`, and renders an on-screen
 report. It covers PRNG determinism, data integrity, season bounds
 (`wins + draws + losses === 38` for every lineup including deliberate junk),
-chemistry, the category gates, the upset ceiling, season fortune, and the
-win-distribution curve. 68 checks.
+chemistry, the category gates, the upset ceiling, season fortune, the season
+report, and the win-distribution curve. 83 checks.
 
 There is also a dev-only Node runner that lifts the same `runTests()` out of the
 file so the simulation can be tuned without a browser:
@@ -135,11 +141,23 @@ throughout.
 1. CONFIG    every tuning constant, in one labelled block
 2. PRNG      mulberry32, FNV-1a string hash, the UTC daily seed
 3. DATA      CLUBS[club][era] -> players
-4. SIM       analyseLineup() and simulateSeason()
+4. SIM       analyseLineup(), simulateSeason() and seasonReport()
 5. DRAFT     the round / spin / skip state machine
 6. VIEW      screens, the slot machine, sound
 7. TESTS     runTests(), behind ?test=1
 ```
+
+## Deploying
+
+`.github/workflows/pages.yml` publishes `index.html` to GitHub Pages on every
+push that touches it. It gates the deploy on the test harness passing *and* on
+the file containing no external script or stylesheet, so the property that makes
+this thing work offline cannot be lost by accident.
+
+The first run needs Pages switched on once by a repository admin —
+**Settings → Pages → Build and deployment → Source: GitHub Actions** — because
+the Actions token is not permitted to create a Pages site itself. After that it
+is automatic.
 
 `CONFIG.FORMATION` is the single source of truth for the lineup; the number of
 draft rounds, the slot picker, the lineup strip and the results list all follow
