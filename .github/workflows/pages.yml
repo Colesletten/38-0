@@ -11,9 +11,6 @@ on:
   push:
     branches:
       - main
-      # The game currently lives on this branch. Once it is merged into main,
-      # this line can go and main alone will drive the site.
-      - claude/game-dev-design-amk7od
     paths:
       - index.html
       - .github/workflows/pages.yml

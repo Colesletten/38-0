@@ -117,8 +117,8 @@ the screen.
 ## Deployment
 
 `.github/workflows/pages.yml` publishes `index.html` to GitHub Pages on any push
-that touches it, gated on the test harness passing and on the file containing no
-external script or stylesheet.
+to `main` that touches it, gated on the test harness passing and on the file
+containing no external script or stylesheet.
 
 **It needs one manual step before the first deploy.** The Actions token is not
 permitted to create a Pages site, so a repository admin must set

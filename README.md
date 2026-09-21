@@ -150,7 +150,7 @@ throughout.
 ## Deploying
 
 `.github/workflows/pages.yml` publishes `index.html` to GitHub Pages on every
-push that touches it. It gates the deploy on the test harness passing *and* on
+push to `main` that touches it. It gates the deploy on the test harness passing *and* on
 the file containing no external script or stylesheet, so the property that makes
 this thing work offline cannot be lost by accident.
 
