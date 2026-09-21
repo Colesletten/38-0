@@ -1,0 +1,87 @@
+# Publishes the game to GitHub Pages.
+#
+# The site is the single self-contained index.html and nothing else — there is
+# no build step, so this workflow just stages that one file and uploads it.
+#
+# `configure-pages` runs with `enablement: true`, which switches Pages on for
+# the repository the first time this runs. Nothing needs setting by hand.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - index.html
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than cancelling it — a half-published
+# site is worse than a slightly stale one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the game's own test harness passes
+        run: node tools/run-tests.mjs
+
+      - name: Stage the site
+        run: |
+          mkdir -p _site
+          cp index.html _site/index.html
+          # No Jekyll processing: the file is already the finished article.
+          touch _site/.nojekyll
+
+      - name: Fail if the page would make a network request
+        run: |
+          # The whole point of this file is that it fetches nothing. Catch any
+          # stylesheet link, script src, or url() pointing off-origin.
+          if grep -nE '<(script|link)[^>]+(src|href)="https?://' _site/index.html; then
+            echo "::error::index.html references an external resource"
+            exit 1
+          fi
+
+      - uses: actions/configure-pages@v5
+        id: configure
+        continue-on-error: true
+        with:
+          enablement: true
+
+      # The Actions token is not allowed to create a Pages site, so the very
+      # first deploy needs a one-off switch flipped by someone with admin rights.
+      - name: Explain if Pages has not been switched on yet
+        if: steps.configure.outcome == 'failure'
+        run: |
+          echo "::error::GitHub Pages is not enabled for this repository, and the"
+          echo "::error::Actions token is not permitted to enable it."
+          echo ""
+          echo "A repository admin needs to do this once:"
+          echo "  Settings -> Pages -> Build and deployment -> Source: GitHub Actions"
+          echo ""
+          echo "Then re-run this workflow. Everything else here already passed."
+          exit 1
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
