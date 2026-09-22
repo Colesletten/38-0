@@ -135,8 +135,15 @@ geometric sans set light against heavy.
 Everything is flat. There are no gradient surfaces, no soft shadows, no glows
 and no grain — that identity is built from solid blocks and hard edges, and
 softening them is exactly what stops it looking like itself. The top bar reads
-as a broadcast score bug, and each player card carries a chevron in its club's
-colour cut on the same rake as the background.
+as a broadcast score bug.
+
+The one piece of ornament is the **chevron field**, taken from the brand's own
+matchday artwork: a handful of thick raked bars at irregular widths and
+heights, each cut to a shallow point at its foot. The reference runs them in
+bright green over aubergine; here they are aubergine on aubergine, one tone
+darker than the ground, so they read as texture behind the content rather than
+competing with it. The rake belongs to the background alone — the interface on
+top of it stays square.
 
 The palette is only the four brand colours plus white, mapped semantically:
 

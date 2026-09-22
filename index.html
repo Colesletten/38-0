@@ -197,9 +197,32 @@ body{
   overflow:hidden;              /* the app owns its own scroll region */
 }
 
-/* The ground is one flat colour. No gradients, no glow, no grain — this
-   identity is built from solid blocks and hard edges, and softening them is
-   exactly what makes it stop looking like itself. */
+/* ---- The chevron field -------------------------------------------------
+   Lifted from the brand's own matchday artwork: a handful of thick raked bars,
+   each cut to a shallow point at its foot, at irregular widths and heights
+   rather than an even repeat. The reference runs them in bright green over
+   aubergine; here they are aubergine on aubergine, one tone darker than the
+   ground, so the pattern reads as texture behind the content rather than
+   competing with it. */
+.chevrons{
+  position:absolute; inset:0; z-index:0;
+  overflow:hidden; pointer-events:none;
+}
+.chevrons i{
+  position:absolute;
+  left:var(--x); width:var(--w); top:var(--t); height:var(--h);
+  background:var(--ink-900);
+  transform:skewX(-15deg);
+  clip-path:polygon(0 0, 100% 0, 100% calc(100% - 38px), 50% 100%, 0 calc(100% - 38px));
+}
+.chevrons i:nth-child(1){ --x:2%;  --w:40px; --t:-14%; --h:78%;  }
+.chevrons i:nth-child(2){ --x:12%; --w:72px; --t:-14%; --h:132%; }
+.chevrons i:nth-child(3){ --x:39%; --w:38px; --t:42%;  --h:78%;  }
+.chevrons i:nth-child(4){ --x:57%; --w:58px; --t:-14%; --h:66%;  }
+.chevrons i:nth-child(5){ --x:76%; --w:80px; --t:-14%; --h:134%; }
+.chevrons i:nth-child(6){ --x:93%; --w:44px; --t:26%;  --h:92%;  }
+/* the shell's own content sits above the field */
+.shell > .topbar, .shell > .stage, .shell > .dock{ position:relative; z-index:1; }
 
 ::selection{background:var(--volt); color:var(--volt-ink);}
 :focus{outline:none;}
@@ -258,25 +281,6 @@ svg{display:block;}
     box-shadow:var(--lift-3);
   }
 }
-
-/* Chevrons. The one piece of ornament this identity has: thick diagonal bars
-   in the two bright brand colours, raked across the page and kept faint enough
-   to sit behind everything. Drawn twice — once on the page for the margins of
-   a wide screen, and once inside the column, which paints its own ground. */
-.pitchmarks,
-.shell::before{
-  content:""; pointer-events:none; z-index:0;
-  background:repeating-linear-gradient(106deg,
-    transparent 0 54px,
-    rgba(0,255,133,.07) 54px 88px,
-    transparent 88px 126px,
-    rgba(4,245,255,.05) 126px 146px,
-    transparent 146px 236px);
-}
-.pitchmarks{ display:block; position:fixed; inset:-12% -25%; }
-.shell::before{ position:absolute; inset:0; }
-/* everything the shell holds sits above its own chevrons */
-.shell > *{ position:relative; z-index:1; }
 
 .stage{
   flex:1 1 auto; min-height:0;          /* min-height:0 lets it actually shrink */
@@ -484,7 +488,7 @@ svg{display:block;}
 .pool{ display:flex; flex-direction:column; gap:8px; }
 .pcard{
   position:relative; display:flex; align-items:center; gap:12px;
-  width:100%; padding:11px 13px 11px 22px; text-align:left;
+  width:100%; padding:11px 13px 11px 16px; text-align:left;
   border:1px solid var(--line); border-radius:var(--r-sm);
   background:var(--ink-750);
   box-shadow:none;
@@ -493,11 +497,11 @@ svg{display:block;}
   animation:cardIn var(--dur-3) var(--ease-out) backwards;
 }
 @keyframes cardIn{ from{ opacity:0; transform:translateY(9px); } to{ opacity:1; transform:none; } }
-/* A chevron of the club's colour, cut on the same rake as the background. */
+/* A straight bar of the club's colour. The rake belongs to the background;
+   the interface itself stays square. */
 .pcard::before{
-  content:""; position:absolute; left:0; top:0; bottom:0; width:12px;
+  content:""; position:absolute; left:0; top:0; bottom:0; width:5px;
   background:var(--accent,var(--ink-500));
-  clip-path:polygon(0 0, 100% 0, 58% 100%, 0 100%);
 }
 .pcard:hover{ border-color:var(--chalk-ghost); background:var(--ink-700); }
 .pcard:active{ transform:scale(.99); }
@@ -821,7 +825,6 @@ svg{display:block;}
 </head>
 <body>
 
-<div class="pitchmarks" aria-hidden="true"></div>
 <div id="app"></div>
 <noscript>
   <div style="max-width:420px;margin:12vh auto;padding:0 22px;font-family:system-ui,sans-serif;color:#C9D0E0">
@@ -5051,6 +5054,17 @@ function render(){
   if(sameScreen){
     const s = root.querySelector('.stage');
     if(s) s.scrollTop = keepScroll;
+  }
+
+  // The chevron field belongs to the shell, and the shell is rebuilt on every
+  // render, so it is put back here rather than baked into all three screens.
+  const shell = root.querySelector('.shell');
+  if(shell){
+    const field = document.createElement('div');
+    field.className = 'chevrons';
+    field.setAttribute('aria-hidden', 'true');
+    field.innerHTML = '<i></i>'.repeat(6);
+    shell.prepend(field);
   }
 
   // Meters sweep in once laid out.

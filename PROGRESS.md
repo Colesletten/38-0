@@ -144,6 +144,11 @@ geometric sans set light against heavy.
   positive, so cautions took a lighter magenta instead.
 - **Flat throughout.** Gradient surfaces, soft shadows, the accent glow and the
   film grain are gone.
+- **The chevron field** is the only ornament, and it lives in the background
+  only: thick raked bars at irregular widths and heights, each cut to a point
+  at its foot, transcribed from the brand's matchday artwork but rendered
+  aubergine-on-aubergine instead of green so it reads as texture. Everything in
+  the interface on top of it is square.
 - The brand's visual language is used; the lion crest is not, since it is a
   trademark. Club crests stay procedural.
 
