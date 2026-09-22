@@ -128,21 +128,38 @@ and the whole squad is offered every spin, filtered by line. Leicester has no
 
 ## Design
 
-The interface is called **TOUCHLINE**: Premier League broadcast graphics crossed
-with Swiss editorial sports print and the mechanical honesty of an arcade
-cabinet. Ink surfaces, chalk type, a single volt-green accent, tabular numerals
-on everything that is a number, and motion that detents rather than bounces.
+The interface follows the **Premier League's own brand language**: a deep
+aubergine ground, electric cyan, mint green and magenta, raked chevrons, and a
+geometric sans set light against heavy.
 
-The typeface is **Inter Tight**, used for every role — display, interface and
-figures. It is not linked from Google Fonts: the variable face is subset to the
-Latin ranges the game actually uses and embedded as a woff2 data URI, about
-61KB, so the page keeps its defining property of making no network calls at all.
-Inter Tight is licensed under the SIL Open Font License 1.1.
+Everything is flat. There are no gradient surfaces, no soft shadows, no glows
+and no grain — that identity is built from solid blocks and hard edges, and
+softening them is exactly what stops it looking like itself. The top bar reads
+as a broadcast score bug, and each player card carries a chevron in its club's
+colour cut on the same rake as the background.
 
-Mobile-first portrait. It is a phone-shaped column at any width, sitting on a
-chalked pitch on desktop. Every crest is generated SVG and every sound is
-synthesised with WebAudio on the spot. `prefers-reduced-motion` is honoured
-throughout.
+The palette is only the four brand colours plus white, mapped semantically:
+
+| | |
+|---|---|
+| **Green** `#00FF85` | wins, value above replacement |
+| **Cyan** `#04F5FF` | draws, primary actions, the mode chip |
+| **Magenta** `#E90052` | defeats, danger, failing gates |
+| **Light magenta** `#FF74A8` | cautions, so a warning never reads as positive |
+
+The typeface is **Poppins** — the closest free relative of the Premier League's
+own face, with the same single-storey `a` and `g`, circular bowls and lining
+figures. It is not linked from Google Fonts: four weights are subset to the
+Latin ranges the game uses and embedded as woff2 data URIs, about 61KB, so the
+page keeps its defining property of making no network calls at all. Kerning
+survives the subsetting — verified by measuring identical text widths against
+the unsubsetted face. Poppins is licensed under the SIL Open Font License 1.1.
+
+The brand's *visual language* is used; its crest is not. The lion is a
+trademark, so the club crests here stay procedural.
+
+Mobile-first portrait. It is a phone-shaped column at any width.
+`prefers-reduced-motion` is honoured throughout.
 
 ## Layout of the file
 

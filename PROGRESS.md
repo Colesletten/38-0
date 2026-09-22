@@ -126,6 +126,27 @@ permitted to create a Pages site, so a repository admin must set
 workflow already ran and failed at exactly that point, with every other step
 green. After the switch is flipped, re-run it and it is automatic from then on.
 
+### 7. Redesign in the Premier League brand language
+
+Rebuilt the identity from reference images of the league's own brand: deep
+aubergine ground, electric cyan, mint green and magenta, raked chevrons, and a
+geometric sans set light against heavy.
+
+- **Typeface chosen, not guessed.** Poppins, picked by rendering it against
+  Jost, Outfit and Figtree beside the reference specimen. Same single-storey
+  `a` and `g`, circular bowls, lining figures. Four weights subset and embedded
+  as woff2 data URIs (61KB) so the page still makes no network calls, and
+  kerning was confirmed intact by measuring text widths against the
+  unsubsetted face.
+- **Four brand colours plus white, mapped semantically** — green wins, cyan
+  draws and primary actions, magenta defeats, light magenta cautions. The old
+  amber had no home in this palette and a cyan warning would have read as
+  positive, so cautions took a lighter magenta instead.
+- **Flat throughout.** Gradient surfaces, soft shadows, the accent glow and the
+  film grain are gone.
+- The brand's visual language is used; the lion crest is not, since it is a
+  trademark. Club crests stay procedural.
+
 ### 6. Telling the two modes apart
 
 Reported as "I keep getting Aston Villa and West Ham, it's the same sequence
