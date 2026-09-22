@@ -197,9 +197,9 @@ body{
   overflow:hidden;              /* the app owns its own scroll region */
 }
 
-/* The ground is one flat colour. No gradients, no glow, no grain — this
-   identity is built from solid blocks and hard edges, and softening them is
-   exactly what makes it stop looking like itself. */
+/* The ground is one flat colour, and nothing is drawn on it. No gradients, no
+   glow, no grain, no raked stripes — this identity is built from solid blocks
+   and hard edges, and anything laid behind the content only muddies them. */
 
 ::selection{background:var(--volt); color:var(--volt-ink);}
 :focus{outline:none;}
@@ -246,7 +246,6 @@ svg{display:block;}
 #app{position:relative; z-index:1; height:100vh; height:100dvh; overflow:hidden;}
 .shell{
   width:100%; max-width:var(--col); margin:0 auto; height:100%;
-  position:relative;
   display:flex; flex-direction:column; overflow:hidden;
   background:var(--ink-800);
   border-inline:1px solid var(--line-faint);
@@ -258,25 +257,6 @@ svg{display:block;}
     box-shadow:var(--lift-3);
   }
 }
-
-/* Chevrons. The one piece of ornament this identity has: thick diagonal bars
-   in the two bright brand colours, raked across the page and kept faint enough
-   to sit behind everything. Drawn twice — once on the page for the margins of
-   a wide screen, and once inside the column, which paints its own ground. */
-.pitchmarks,
-.shell::before{
-  content:""; pointer-events:none; z-index:0;
-  background:repeating-linear-gradient(106deg,
-    transparent 0 54px,
-    rgba(0,255,133,.07) 54px 88px,
-    transparent 88px 126px,
-    rgba(4,245,255,.05) 126px 146px,
-    transparent 146px 236px);
-}
-.pitchmarks{ display:block; position:fixed; inset:-12% -25%; }
-.shell::before{ position:absolute; inset:0; }
-/* everything the shell holds sits above its own chevrons */
-.shell > *{ position:relative; z-index:1; }
 
 .stage{
   flex:1 1 auto; min-height:0;          /* min-height:0 lets it actually shrink */
@@ -821,7 +801,6 @@ svg{display:block;}
 </head>
 <body>
 
-<div class="pitchmarks" aria-hidden="true"></div>
 <div id="app"></div>
 <noscript>
   <div style="max-width:420px;margin:12vh auto;padding:0 22px;font-family:system-ui,sans-serif;color:#C9D0E0">
