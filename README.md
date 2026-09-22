@@ -24,9 +24,18 @@ No build step, no install, no server, no network. The entire game — data, engi
 interface, artwork and sound — is one self-contained HTML file that makes exactly
 **one** HTTP request: the one that loads it.
 
-- **Today's draft** — the spins are seeded from the UTC date, so everyone playing
-  on the same day gets the same machine, and reloading gives you the same draw.
-- **Free play** — reseeds every game.
+There are **two ways to play**, and the title screen states the difference on the
+buttons themselves rather than in a footnote, because it is the one thing people
+get wrong:
+
+- **Free draft** — different spins every single time. This is the primary action
+  and the one you want if you just want to play.
+- **Today's draft** — seeded from the UTC date, so everyone playing on the same
+  day gets the same seven spins. Replaying it deliberately repeats it; once
+  you've played it, the card says so and shows your record.
+
+A single draft never visits the same club twice, so seven spins are a tour of the
+league rather than two Chelsea cells and two Arsenal cells.
 - **Copy result** — puts a shareable emoji season grid on your clipboard.
 
 The results screen is a report, not a scoreboard: what the seven were *worth*

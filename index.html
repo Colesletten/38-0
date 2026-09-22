@@ -304,6 +304,54 @@ svg{display:block;}
 .iconbtn:hover{ color:var(--chalk); border-color:var(--line-strong); background:rgba(255,255,255,.04); }
 .iconbtn[aria-pressed="true"]{ color:var(--volt); border-color:rgba(201,255,77,.4); }
 
+/* ---- Mode cards ---- */
+.modecard{
+  display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+  padding:13px 14px; margin-bottom:8px;
+  border:1px solid var(--line-strong); border-radius:var(--r-md);
+  background:linear-gradient(180deg,var(--ink-700),var(--ink-800));
+  box-shadow:var(--lift-2); color:var(--chalk);
+  transition:transform var(--dur-1) var(--ease-out), border-color var(--dur-2),
+             background var(--dur-2), box-shadow var(--dur-2);
+}
+.modecard:last-child{ margin-bottom:0; }
+.modecard:hover{ background:linear-gradient(180deg,var(--ink-600),var(--ink-700)); }
+.modecard:active{ transform:translateY(1px) scale(.995); }
+.modecard.is-accent{
+  background:linear-gradient(180deg,var(--volt),var(--volt-deep));
+  color:var(--volt-ink); border-color:transparent;
+  box-shadow:var(--glow-volt), 0 10px 26px -12px rgba(201,255,77,.7);
+}
+.modecard.is-accent:hover{ background:linear-gradient(180deg,#D8FF74,var(--volt)); }
+.mc-body{ flex:1; min-width:0; }
+.mc-name{
+  display:flex; align-items:center; gap:8px;
+  font-family:var(--f-display); font-weight:900; font-size:15px;
+  letter-spacing:.006em; text-transform:uppercase; line-height:1;
+}
+.mc-tag{
+  font-family:var(--f-mono); font-variant-numeric:tabular-nums;
+  font-size:10px; font-weight:700; letter-spacing:-.01em; text-transform:none;
+  padding:3px 6px; border-radius:var(--r-xs);
+  background:rgba(255,255,255,.07); color:var(--chalk-dim);
+}
+.modecard.is-accent .mc-tag{ background:rgba(0,0,0,.14); color:rgba(12,20,0,.75); }
+.mc-desc{ display:block; margin-top:6px; font-size:11.5px; line-height:1.45; color:var(--chalk-dim); }
+.modecard.is-accent .mc-desc{ color:rgba(12,20,0,.72); }
+.mc-status{
+  display:block; margin-top:6px; font-size:10px; font-weight:700;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--amber);
+}
+.mc-go{ flex:none; opacity:.5; }
+.modecard.is-accent .mc-go{ opacity:.7; }
+
+/* which mode this draft is, visible the whole way through */
+.modechip{
+  flex:none; font-size:9.5px; font-weight:800; letter-spacing:.12em; text-transform:uppercase;
+  padding:4px 7px; border-radius:var(--r-xs);
+  border:1px solid var(--line); color:var(--chalk-faint);
+}
+
 /* ---- Round pips ---- */
 .pips{ display:flex; gap:5px; align-items:center; }
 .pip{
@@ -932,6 +980,7 @@ const CONFIG = {
   ],
 
   STORAGE_KEY: '38-0.best.v1',
+  DAILY_KEY: '38-0.daily.v1',      // which daily you have already played, and how it went
 };
 
 /* One pick per slot, always. */
@@ -3833,6 +3882,7 @@ const GAME = {
   cell: null,           // the club/era cell currently on the reels
   offered: [],
   usedCells: null,
+  usedClubs: null,
   usedNames: null,
   lineup: {},
   picks: [],
@@ -3844,18 +3894,37 @@ const GAME = {
   result: null,
 };
 
+/** A fresh, unguessable key for a free game. Uses the platform CSPRNG where it
+    exists and falls back to the clock plus Math.random, which is plenty for a
+    slot machine. Never touches the network. */
+function freeSeedKey(){
+  let entropy = '';
+  try{
+    const c = (typeof crypto !== 'undefined') ? crypto : null;
+    if(c && typeof c.getRandomValues === 'function'){
+      const buf = new Uint32Array(3);
+      c.getRandomValues(buf);
+      entropy = Array.from(buf).map(n => n.toString(36)).join('-');
+    }
+  }catch(e){ /* fall through */ }
+  if(!entropy){
+    entropy = Math.floor(Math.random()*4294967296).toString(36) + '-' +
+              Math.floor(Math.random()*4294967296).toString(36);
+  }
+  return 'free-' + Date.now().toString(36) + '-' + entropy;
+}
+
 function newGame(mode){
   GAME.screen = 'draft';
   GAME.phase = 'idle';
   GAME.mode = mode === 'free' ? 'free' : 'daily';
-  GAME.seedKey = GAME.mode === 'daily'
-    ? utcDateKey()
-    : 'free-' + Date.now().toString(36) + '-' + Math.floor(Math.random()*1e9).toString(36);
+  GAME.seedKey = GAME.mode === 'daily' ? utcDateKey() : freeSeedKey();
   GAME.rnd = mulberry32(hashString('38-0::' + GAME.seedKey));
   GAME.round = 0;
   GAME.cell = null;
   GAME.offered = [];
   GAME.usedCells = new Set();
+  GAME.usedClubs = new Set();
   GAME.usedNames = new Set();
   GAME.lineup = {};
   GAME.picks = [];
@@ -3868,12 +3937,24 @@ function newGame(mode){
   return GAME;
 }
 
-/** Cells still worth landing on: not already drafted from, and with players left. */
-function availableCells(){
+/**
+ * Cells still worth landing on: not already drafted from, and with players left.
+ *
+ * By default this also skips any club you have already raided. Seven spins that
+ * visit seven different clubs feel like a tour of the league; two Chelsea cells
+ * and two Arsenal cells feel like the machine is stuck. With eleven clubs and
+ * seven rounds there is always room, but the filter stands down rather than
+ * strand the draft if it ever cannot be satisfied.
+ */
+function availableCells(opts){
+  const o = opts || {};
   const open = POOL.cells.filter(c =>
     !GAME.usedCells.has(cellKey(c.club, c.era)) &&
     c.players.some(p => !GAME.usedNames.has(p.name)));
-  return open.length ? open : POOL.cells;
+  if(!open.length) return POOL.cells;
+  if(o.sameClubOk) return open;
+  const freshClubs = open.filter(c => !GAME.usedClubs.has(c.club));
+  return freshClubs.length ? freshClubs : open;
 }
 
 function spinCell(){ return rngPick(GAME.rnd, availableCells()); }
@@ -3884,7 +3965,8 @@ function respinClub(){
   return opts.length ? rngPick(GAME.rnd, opts) : null;
 }
 function respinEra(){
-  const opts = availableCells().filter(c => c.club === GAME.cell.club && c.era !== GAME.cell.era);
+  const opts = availableCells({ sameClubOk:true })
+    .filter(c => c.club === GAME.cell.club && c.era !== GAME.cell.era);
   return opts.length ? rngPick(GAME.rnd, opts) : null;
 }
 
@@ -3915,7 +3997,10 @@ function assignPending(slotId){
   const player = GAME.pending;
   GAME.lineup[slotId] = player;
   GAME.usedNames.add(player.name);
-  if(GAME.cell) GAME.usedCells.add(cellKey(GAME.cell.club, GAME.cell.era));
+  if(GAME.cell){
+    GAME.usedCells.add(cellKey(GAME.cell.club, GAME.cell.era));
+    GAME.usedClubs.add(GAME.cell.club);
+  }
   GAME.picks.push({
     round: GAME.round, slotId, player, club: player.club, era: player.era,
     offered: GAME.offered.slice(),      // what else was on the board at the time
@@ -3929,6 +4014,7 @@ function assignPending(slotId){
     GAME.screen = 'results';
     GAME.prevBest = loadBest();      // read before we overwrite it, for the "new best" flag
     recordBest(GAME.result);
+    recordDaily(GAME.result);
   }else{
     GAME.cell = null;
     GAME.offered = [];
@@ -3949,6 +4035,27 @@ function loadBest(){
     const b = JSON.parse(raw);
     if(!b || typeof b.wins !== 'number') return null;
     return b;
+  }catch(e){ return null; }
+}
+
+/** Remember how today's daily went, so the title screen can say so. */
+function recordDaily(result){
+  if(T.running || GAME.mode !== 'daily') return;
+  try{
+    localStorage.setItem(CONFIG.DAILY_KEY, JSON.stringify({
+      day: GAME.seedKey, wins: result.wins, draws: result.draws, losses: result.losses,
+      verdict: verdictFor(result).title,
+    }));
+  }catch(e){ /* storage is a convenience, never a dependency */ }
+}
+
+/** Today's daily result, if it has already been played. */
+function loadDaily(){
+  try{
+    const raw = localStorage.getItem(CONFIG.DAILY_KEY);
+    if(!raw) return null;
+    const d = JSON.parse(raw);
+    return (d && d.day === utcDateKey()) ? d : null;
   }catch(e){ return null; }
 }
 
@@ -4131,6 +4238,70 @@ function testDraft(){
     GAME.screen === 'results' && GAME.result &&
     GAME.result.wins + GAME.result.draws + GAME.result.losses === CONFIG.SEASON.MATCHES);
 
+  // Variety: a draft should tour the league, not circle one club.
+  (() => {
+    let repeats = 0, runs = 0, distinct = {};
+    for(let g=0; g<200; g++){
+      newGame('free');
+      const clubs = [];
+      let guard = 0;
+      while(GAME.screen === 'draft' && guard++ < 50){
+        GAME.cell = spinCell();
+        clubs.push(GAME.cell.club);
+        GAME.offered = offerFrom(GAME.cell);
+        GAME.pending = GAME.offered[0];
+        assignPending(openSlots()[0].id);
+      }
+      runs++;
+      if(new Set(clubs).size !== clubs.length) repeats++;
+      distinct[new Set(clubs).size] = (distinct[new Set(clubs).size] || 0) + 1;
+    }
+    check('DRAFT: a single draft never visits the same club twice',
+      repeats === 0, repeats + ' of ' + runs + ' drafts repeated a club; sizes ' + JSON.stringify(distinct));
+  })();
+
+  // Free play must actually feel different game to game.
+  (() => {
+    const firsts = [], seeds = new Set();
+    for(let g=0; g<400; g++){
+      newGame('free');
+      seeds.add(GAME.seedKey);
+      const c = spinCell();
+      firsts.push(c.club + '|' + c.era);
+    }
+    const unique = new Set(firsts).size;
+    check('DRAFT: free play uses a different seed every game', seeds.size === 400);
+    check('DRAFT: free play opens on a wide spread of club/era cells',
+      unique >= 20, unique + ' distinct opening cells across 400 free games');
+
+    // No single cell should dominate the opening spin.
+    const counts = {};
+    for(const f of firsts) counts[f] = (counts[f]||0) + 1;
+    const top = Object.entries(counts).sort((a,b) => b[1]-a[1])[0];
+    check('DRAFT: no club/era cell dominates the opening spin',
+      top[1] < firsts.length * 0.15, 'most common opener: ' + top[0] + ' (' + top[1] + '/400)');
+  })();
+
+  // ...while the daily stays identical on a given day, which is the point.
+  (() => {
+    const play = () => {
+      newGame('daily');
+      const seq = [];
+      let guard = 0;
+      while(GAME.screen === 'draft' && guard++ < 50){
+        GAME.cell = spinCell();
+        seq.push(GAME.cell.club + ' ' + GAME.cell.era);
+        GAME.offered = offerFrom(GAME.cell);
+        GAME.pending = GAME.offered[0];
+        assignPending(openSlots()[0].id);
+      }
+      return seq.join(' | ');
+    };
+    const a = play(), b = play();
+    check('DRAFT: today\'s draft is the same seven spins however often you replay it',
+      a === b, a.split(' | ').slice(0,2).join(' | ') + ' ...');
+  })();
+
   // Skips hold one reel and change the other.
   newGame('daily');
   GAME.cell = spinCell();
@@ -4298,6 +4469,7 @@ const ROOT = () => document.getElementById('app');
    ============================================================================ */
 function viewTitle(){
   const best = loadBest();
+  const daily = loadDaily();
   return '<div class="shell">' +
     topbarHTML({ minimal:true }) +
     '<div class="stage">' +
@@ -4319,9 +4491,19 @@ function viewTitle(){
         '</b> &middot; ' + esc(best.verdict) + '</div>' : '') +
     '</div>' +
     '<div class="dock">' +
-      '<button class="btn btn--primary" data-act="new-daily">Today&rsquo;s draft &middot; ' + utcDateKey() + '</button>' +
-      '<button class="btn btn--ghost" data-act="new-free" style="margin-top:8px">Free play</button>' +
-      '<p class="note" style="text-align:center;margin-top:10px">Everyone gets the same spins on the same day.</p>' +
+      '<p class="eyebrow" style="margin-bottom:9px">Two ways to play</p>' +
+      modeCardHTML({
+        act:'new-free', name:'Free draft', accent:true,
+        desc:'Different spins every single time. Play as often as you like.',
+      }) +
+      modeCardHTML({
+        act:'new-daily', name:'Today&rsquo;s draft', tag: utcDateKey(),
+        desc:'The same seven spins for everyone, until midnight UTC.',
+        status: daily
+          ? 'Played &middot; ' + daily.wins + '&#8209;' + daily.draws + '&#8209;' + daily.losses +
+            ' &middot; replaying repeats it'
+          : '',
+      }) +
     '</div>' +
   '</div>';
 }
@@ -4330,6 +4512,23 @@ function viewTitle(){
 /* ============================================================================
    TOP BAR
    ============================================================================ */
+/** One of the two ways to start a game, stated plainly. The difference between
+    the modes is the single thing players get wrong, so it is spelled out on the
+    control itself rather than in a note underneath. */
+function modeCardHTML(o){
+  return '<button class="modecard' + (o.accent ? ' is-accent' : '') + '" data-act="' + o.act + '">' +
+    '<span class="mc-body">' +
+      '<span class="mc-name">' + o.name +
+        (o.tag ? '<span class="mc-tag">' + esc(o.tag) + '</span>' : '') + '</span>' +
+      '<span class="mc-desc">' + o.desc + '</span>' +
+      (o.status ? '<span class="mc-status">' + o.status + '</span>' : '') +
+    '</span>' +
+    '<svg class="mc-go" width="16" height="16" viewBox="0 0 24 24" fill="none" ' +
+      'stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" ' +
+      'aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>' +
+  '</button>';
+}
+
 function topbarHTML(opts){
   const o = opts || {};
   const pips = o.minimal ? '' : '<div class="pips" aria-label="Round ' + (GAME.round+1) + ' of ' + CONFIG.DRAFT.ROUNDS + '">' +
@@ -4339,7 +4538,12 @@ function topbarHTML(opts){
 
   return '<header class="topbar">' +
     '<div class="mark">38<b>&#8209;</b>0</div>' +
-    (o.minimal ? '<div class="spacer"></div>' : '<div class="spacer"></div>' + pips + '<div class="spacer"></div>') +
+    (o.minimal
+      ? '<div class="spacer"></div>'
+      : '<div class="spacer"></div>' + pips + '<div class="spacer"></div>' +
+        '<span class="modechip" title="' +
+          (GAME.mode === 'daily' ? 'Today&rsquo;s draft &mdash; same spins for everyone' : 'Free draft &mdash; new spins every time') +
+        '">' + (GAME.mode === 'daily' ? 'Daily' : 'Free') + '</span>') +
     '<button class="iconbtn" data-act="sound" aria-pressed="' + (SFX.on?'true':'false') + '" ' +
       'aria-label="' + (SFX.on?'Mute':'Unmute') + '" title="' + (SFX.on?'Mute':'Unmute') + '">' + soundIcon(SFX.on) + '</button>' +
     (o.minimal ? '' : '<button class="iconbtn" data-act="quit" aria-label="Abandon draft" title="Abandon draft">' + xIcon() + '</button>') +
@@ -4764,7 +4968,7 @@ function viewResults(){
     '<div class="dock">' +
       '<button class="btn btn--primary" data-act="share">Copy result</button>' +
       '<div class="btn--row" style="margin-top:8px">' +
-        '<button class="btn btn--ghost" data-act="new-free">Play again</button>' +
+        '<button class="btn btn--ghost" data-act="new-free">New draft</button>' +
         '<button class="btn btn--ghost" data-act="home">Home</button>' +
       '</div>' +
     '</div>' +

@@ -9,7 +9,7 @@ in [`SPEC.md`](SPEC.md); how to play and how it works is in
 All six milestones from the original brief are done, plus a second round of
 changes from playtest feedback.
 
-**83/83 self-checks green.** Verified in Chromium at 360×640, 390×844 and
+**88/88 self-checks green.** Verified in Chromium at 360×640, 390×844 and
 1440×900, with `prefers-reduced-motion`, and opened directly from `file://`.
 A Playwright network audit confirms the page still makes exactly **one** HTTP
 request: the document itself.
@@ -125,6 +125,37 @@ permitted to create a Pages site, so a repository admin must set
 **Settings → Pages → Build and deployment → Source: GitHub Actions** once. The
 workflow already ran and failed at exactly that point, with every other step
 green. After the switch is flipped, re-run it and it is automatic from then on.
+
+### 6. Telling the two modes apart
+
+Reported as "I keep getting Aston Villa and West Ham, it's the same sequence
+every time". It was not a randomness bug — free play's seeding measured clean
+over 4,000 games (4,000 distinct seeds, uniform across clubs, uniform first
+draw). It was the daily draft doing exactly what it is designed to do: the
+2026-09-21 daily really does open `Aston Villa 2000s | West Ham 2010s | ...`,
+and replaying it replays it.
+
+The actual faults were UX and variety:
+
+- **The prominent button was the one that never changes.** "Today's draft" was
+  the primary action and free play was a ghost button under it. They are now two
+  labelled mode cards under a "Two ways to play" heading, each stating its own
+  behaviour — "different spins every single time" against "the same seven spins
+  for everyone, until midnight UTC". Free draft is the primary.
+- **A finished daily now says so**, showing your record on the card and warning
+  that replaying repeats it.
+- **A mode chip** sits in the top bar for the whole draft, so you always know
+  which kind of game you are in.
+- **No club twice in one draft.** Previously only the exact club/era cell was
+  excluded, so a single game could serve two Chelsea cells and two Arsenal
+  cells. With eleven clubs and seven rounds there is always room; the filter
+  stands down rather than strand the draft.
+- **Free play now seeds from `crypto.getRandomValues`** where available, falling
+  back to the clock plus `Math.random`.
+
+Five new checks cover it, including that a draft never repeats a club, that 400
+free games open on a wide spread of cells with no cell dominating, and that the
+daily is still byte-identical however often it is replayed.
 
 ---
 
