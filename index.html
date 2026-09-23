@@ -1259,6 +1259,14 @@ function P(name, position, attack, creativity, defense, physical, gk){
 
 /** Club identity — used for the crest, the reel and the share card. */
 const CLUB_META = {
+  'Charlton':       { code:'CHA', primary:'#D4021D', secondary:'#F4F6FA', nick:'The Addicks' },
+  'Portsmouth':     { code:'POR', primary:'#001489', secondary:'#F4F6FA', nick:'Pompey' },
+  'Sunderland':     { code:'SUN', primary:'#EB172B', secondary:'#F4F6FA', nick:'The Black Cats' },
+  'Birmingham':     { code:'BIR', primary:'#0000AA', secondary:'#F4F6FA', nick:'Blues' },
+  'Blackburn':      { code:'BLB', primary:'#009EE0', secondary:'#F4F6FA', nick:'Rovers' },
+  'Bolton':         { code:'BOL', primary:'#263C7E', secondary:'#F4F6FA', nick:'The Trotters' },
+  'Middlesbrough':  { code:'MID', primary:'#E21C38', secondary:'#F4F6FA', nick:'Boro' },
+  'Fulham':         { code:'FUL', primary:'#F4F6FA', secondary:'#000000', nick:'The Cottagers' },
   'Arsenal':        { code:'ARS', primary:'#EF0107', secondary:'#F4F6FA', nick:'The Arsenal' },
   'Man Utd':        { code:'MUN', primary:'#DA291C', secondary:'#FBE122', nick:'United' },
   'Chelsea':        { code:'CHE', primary:'#2B6BD4', secondary:'#F4F6FA', nick:'The Blues' },
@@ -2035,6 +2043,222 @@ const CLUBS = {
   ],
 },
 
+
+/* -------------------------------------------------------------- BLACKBURN -- */
+/* Premier League 2001-02 to 2009-10. League Cup winners 2002. */
+'Blackburn': {
+  '2000s': [
+    P('Brad Friedel',              'GK',   5,  44,  34,  82,  86),
+    P('Paul Robinson',             'GK',   5,  46,  32,  78,  80),
+    P('Peter Enckelman',           'GK',   5,  38,  28,  74,  70),
+    P('Christopher Samba',         'DEF', 30,  46,  82,  92,   6),
+    P('Ryan Nelsen',               'DEF', 28,  52,  80,  82,   6),
+    P('Lucas Neill',               'DEF', 32,  56,  78,  84,   6),
+    P('Henning Berg',              'DEF', 26,  54,  80,  76,   6),
+    P('Stephen Warnock',           'DEF', 36,  62,  74,  84,   6),
+    P('Andre Ooijer',              'DEF', 28,  50,  76,  78,   6),
+    P('Tugay Kerimoglu',           'MID', 52,  86,  70,  66,   6),
+    P('Damien Duff',               'MID', 76,  84,  46,  88,   6),
+    P('David Dunn',                'MID', 70,  82,  56,  74,   6),
+    P('Morten Gamst Pedersen',     'MID', 64,  80,  58,  80,   6),
+    P('David Bentley',             'MID', 66,  82,  50,  78,   6),
+    P('Brett Emerton',             'MID', 62,  70,  64,  88,   6),
+    P('Benni McCarthy',            'FWD', 84,  72,  28,  76,   6),
+    P('Roque Santa Cruz',          'FWD', 82,  70,  30,  86,   6),
+    P('Andy Cole',                 'FWD', 84,  70,  26,  78,   6),
+    P('Craig Bellamy',             'FWD', 84,  74,  28,  92,   6),
+    P('Matt Jansen',               'FWD', 78,  78,  28,  78,   6),
+  ],
+},
+
+/* ----------------------------------------------------------------- BOLTON -- */
+/* Premier League 2001-02 to 2011-12; the 2000s were the Allardyce years. */
+'Bolton': {
+  '2000s': [
+    P('Jussi Jaaskelainen',        'GK',   5,  44,  34,  82,  84),
+    P('Ali Al-Habsi',              'GK',   5,  40,  30,  80,  76),
+    P('Ian Walker',                'GK',   5,  40,  30,  74,  72),
+    P('Gary Cahill',               'DEF', 32,  56,  82,  84,   6),
+    P('Abdoulaye Faye',            'DEF', 30,  44,  78,  90,   6),
+    P('Bruno Ngotty',              'DEF', 28,  50,  76,  76,   6),
+    P('Tal Ben Haim',              'DEF', 26,  48,  76,  80,   6),
+    P('Ricardo Gardner',           'DEF', 40,  64,  70,  84,   6),
+    P('Gudni Bergsson',            'DEF', 28,  52,  76,  74,   6),
+    P('Jay-Jay Okocha',            'MID', 72,  90,  46,  80,   6),
+    P('Gary Speed',                'MID', 62,  76,  70,  78,   6),
+    P('Kevin Nolan',               'MID', 66,  72,  62,  72,   6),
+    P('Stelios Giannakopoulos',    'MID', 68,  76,  48,  78,   6),
+    P('Ivan Campo',                'MID', 44,  74,  74,  70,   6),
+    P('Youri Djorkaeff',           'MID', 74,  84,  42,  70,   6),
+    P('Nicolas Anelka',            'FWD', 86,  76,  28,  88,   6),
+    P('Kevin Davies',              'FWD', 74,  64,  40,  90,   6),
+    P('El Hadji Diouf',            'FWD', 76,  78,  30,  86,   6),
+    P('Johan Elmander',            'FWD', 74,  68,  30,  84,   6),
+    P('Henrik Pedersen',           'FWD', 68,  62,  32,  80,   6),
+  ],
+},
+
+/* ---------------------------------------------------------- MIDDLESBROUGH -- */
+/* Premier League 2000-01 to 2008-09. League Cup 2004, UEFA Cup final 2006. */
+'Middlesbrough': {
+  '2000s': [
+    P('Mark Schwarzer',            'GK',   5,  46,  34,  82,  86),
+    P('Brad Jones',                'GK',   5,  38,  28,  78,  72),
+    P('Ross Turnbull',             'GK',   5,  36,  28,  76,  70),
+    P('Gareth Southgate',          'DEF', 28,  60,  82,  74,   6),
+    P('Ugo Ehiogu',                'DEF', 32,  46,  80,  88,   6),
+    P('Robert Huth',               'DEF', 30,  44,  80,  88,   6),
+    P('Franck Queudrue',           'DEF', 36,  58,  76,  82,   6),
+    P('Chris Riggott',             'DEF', 28,  48,  76,  80,   6),
+    P('Emanuel Pogatetz',          'DEF', 28,  46,  78,  86,   6),
+    P('Juninho',                   'MID', 76,  90,  40,  80,   6),
+    P('Gaizka Mendieta',           'MID', 72,  86,  56,  76,   6),
+    P('Stewart Downing',           'MID', 68,  82,  48,  82,   6),
+    P('Boudewijn Zenden',          'MID', 66,  80,  50,  82,   6),
+    P('George Boateng',            'MID', 48,  66,  78,  84,   6),
+    P('Fabio Rochemback',          'MID', 62,  76,  60,  74,   6),
+    P('Mark Viduka',               'FWD', 86,  78,  30,  78,   6),
+    P('Jimmy Floyd Hasselbaink',   'FWD', 86,  72,  28,  80,   6),
+    P('Yakubu',                    'FWD', 82,  68,  28,  84,   6),
+    P('Alen Boksic',               'FWD', 82,  74,  28,  76,   6),
+    P('Massimo Maccarone',         'FWD', 74,  70,  28,  74,   6),
+  ],
+},
+
+/* ----------------------------------------------------------------- FULHAM -- */
+/* Premier League from 2001-02, with a short break either side of 2014. */
+'Fulham': {
+  '2000s': [
+    P('Edwin van der Sar',         'GK',   5,  56,  36,  82,  90),
+    P('Mark Schwarzer',            'GK',   5,  46,  34,  82,  86),
+    P('Antti Niemi',               'GK',   5,  42,  30,  78,  78),
+    P('Brede Hangeland',           'DEF', 30,  52,  82,  86,   6),
+    P('Aaron Hughes',              'DEF', 26,  54,  78,  78,   6),
+    P('Carlos Bocanegra',          'DEF', 30,  50,  76,  80,   6),
+    P('Zat Knight',                'DEF', 28,  42,  74,  86,   6),
+    P('Moritz Volz',               'DEF', 32,  58,  72,  80,   6),
+    P('Paul Konchesky',            'DEF', 36,  62,  72,  80,   6),
+    P('Steed Malbranque',          'MID', 70,  84,  50,  78,   6),
+    P('Danny Murphy',              'MID', 66,  86,  62,  68,   6),
+    P('Jimmy Bullard',             'MID', 64,  82,  58,  80,   6),
+    P('Simon Davies',              'MID', 66,  78,  54,  80,   6),
+    P('Papa Bouba Diop',           'MID', 56,  62,  76,  90,   6),
+    P('Sylvain Legwinski',         'MID', 58,  72,  62,  74,   6),
+    P('Louis Saha',                'FWD', 84,  74,  28,  88,   6),
+    P('Brian McBride',             'FWD', 78,  68,  32,  82,   6),
+    P('Bobby Zamora',              'FWD', 78,  74,  30,  82,   6),
+    P('Andrew Johnson',            'FWD', 78,  68,  28,  90,   6),
+    P('Luis Boa Morte',            'FWD', 74,  74,  34,  88,   6),
+  ],
+},
+
+/* --------------------------------------------------------------- CHARLTON -- */
+/* Premier League 2000-01 to 2006-07, seven seasons under Alan Curbishley. */
+'Charlton': {
+  '2000s': [
+    P('Dean Kiely',                'GK',   5,  44,  32,  76,  80),
+    P('Stephan Andersen',          'GK',   5,  38,  28,  76,  72),
+    P('Thomas Myhre',              'GK',   5,  38,  28,  76,  72),
+    P('Luke Young',                'DEF', 34,  58,  76,  84,   6),
+    P('Chris Perry',               'DEF', 24,  48,  78,  74,   6),
+    P('Mark Fish',                 'DEF', 28,  46,  76,  82,   6),
+    P('Hermann Hreidarsson',       'DEF', 30,  44,  74,  84,   6),
+    P('Talal El Karkouri',         'DEF', 34,  50,  74,  82,   6),
+    P('Jon Fortune',               'DEF', 26,  42,  70,  80,   6),
+    P('Scott Parker',              'MID', 62,  80,  74,  84,   6),
+    P('Claus Jensen',              'MID', 66,  84,  48,  72,   6),
+    P('Matt Holland',              'MID', 56,  72,  68,  78,   6),
+    P('Dennis Rommedahl',          'MID', 64,  74,  42,  94,   6),
+    P('Graham Stuart',             'MID', 62,  74,  52,  72,   6),
+    P('Radostin Kishishev',        'MID', 42,  60,  72,  80,   6),
+    P('Darren Bent',               'FWD', 82,  66,  26,  86,   6),
+    P('Jason Euell',               'FWD', 74,  72,  32,  80,   6),
+    P('Shaun Bartlett',            'FWD', 74,  66,  30,  80,   6),
+    P('Jonatan Johansson',         'FWD', 70,  68,  30,  80,   6),
+    P('Kevin Lisbie',              'FWD', 68,  62,  28,  86,   6),
+  ],
+},
+
+/* ------------------------------------------------------------- PORTSMOUTH -- */
+/* Premier League 2003-04 to 2009-10. FA Cup winners 2008. */
+'Portsmouth': {
+  '2000s': [
+    P('David James',               'GK',   5,  50,  36,  86,  86),
+    P('Shaka Hislop',              'GK',   5,  42,  32,  80,  78),
+    P('Jamie Ashdown',             'GK',   5,  38,  28,  76,  72),
+    P('Sol Campbell',              'DEF', 32,  52,  86,  88,   6),
+    P('Glen Johnson',              'DEF', 40,  64,  74,  88,   6),
+    P('Sylvain Distin',            'DEF', 28,  48,  80,  88,   6),
+    P('Linvoy Primus',             'DEF', 26,  44,  76,  82,   6),
+    P('Dejan Stefanovic',          'DEF', 30,  52,  76,  78,   6),
+    P('Arjan de Zeeuw',            'DEF', 28,  46,  76,  78,   6),
+    P('Lassana Diarra',            'MID', 54,  74,  80,  86,   6),
+    P('Sulley Muntari',            'MID', 68,  76,  62,  86,   6),
+    P('Niko Kranjcar',             'MID', 70,  84,  48,  76,   6),
+    P('Pedro Mendes',              'MID', 62,  78,  62,  74,   6),
+    P('Papa Bouba Diop',           'MID', 56,  62,  76,  90,   6),
+    P('Matthew Taylor',            'MID', 66,  76,  54,  80,   6),
+    P('Jermain Defoe',             'FWD', 86,  70,  24,  88,   6),
+    P('Peter Crouch',              'FWD', 82,  76,  30,  74,   6),
+    P('Yakubu',                    'FWD', 82,  68,  28,  84,   6),
+    P('Nwankwo Kanu',              'FWD', 78,  82,  28,  74,   6),
+    P('Benjani',                   'FWD', 74,  64,  30,  88,   6),
+  ],
+},
+
+/* -------------------------------------------------------------- SUNDERLAND -- */
+/* Premier League 2000-01 to 2002-03, 2005-06, and 2007-08 onward. */
+'Sunderland': {
+  '2000s': [
+    P('Thomas Sorensen',           'GK',   5,  44,  32,  82,  82),
+    P('Craig Gordon',              'GK',   5,  40,  30,  82,  80),
+    P('Kelvin Davis',              'GK',   5,  38,  28,  76,  74),
+    P('Jody Craddock',             'DEF', 26,  44,  74,  78,   6),
+    P('Michael Gray',              'DEF', 34,  60,  72,  80,   6),
+    P('George McCartney',          'DEF', 30,  54,  74,  80,   6),
+    P('Phil Bardsley',             'DEF', 32,  52,  74,  82,   6),
+    P('Danny Collins',             'DEF', 26,  44,  72,  78,   6),
+    P('Nyron Nosworthy',           'DEF', 24,  40,  72,  84,   6),
+    P('Julio Arca',                'MID', 64,  80,  56,  76,   6),
+    P('Kieran Richardson',         'MID', 66,  74,  58,  84,   6),
+    P('Steed Malbranque',          'MID', 70,  84,  50,  78,   6),
+    P('Dean Whitehead',            'MID', 50,  66,  70,  80,   6),
+    P('Gavin McCann',              'MID', 54,  68,  68,  78,   6),
+    P('Andy Reid',                 'MID', 62,  80,  46,  68,   6),
+    P('Kevin Phillips',            'FWD', 88,  74,  26,  82,   6),
+    P('Darren Bent',               'FWD', 82,  66,  26,  86,   6),
+    P('Niall Quinn',               'FWD', 78,  70,  32,  74,   6),
+    P('Kenwyne Jones',             'FWD', 76,  64,  30,  88,   6),
+    P('Michael Chopra',            'FWD', 70,  64,  26,  82,   6),
+  ],
+},
+
+/* ------------------------------------------------------------- BIRMINGHAM -- */
+/* Premier League 2002-03 to 2005-06, 2007-08, and 2009-10. */
+'Birmingham': {
+  '2000s': [
+    P('Maik Taylor',               'GK',   5,  42,  32,  78,  80),
+    P('Nico Vaesen',               'GK',   5,  38,  28,  76,  72),
+    P('Colin Doyle',               'GK',   5,  36,  26,  76,  70),
+    P('Matthew Upson',             'DEF', 28,  54,  80,  80,   6),
+    P('Kenny Cunningham',          'DEF', 24,  50,  76,  76,   6),
+    P('Stephen Carr',              'DEF', 34,  58,  74,  80,   6),
+    P('Liam Ridgewell',            'DEF', 30,  52,  72,  80,   6),
+    P('Martin Taylor',             'DEF', 26,  40,  72,  84,   6),
+    P('Jamie Clapham',             'DEF', 32,  56,  70,  78,   6),
+    P('Robbie Savage',             'MID', 44,  64,  72,  82,   6),
+    P('Jermaine Pennant',          'MID', 68,  80,  42,  88,   6),
+    P('Sebastian Larsson',         'MID', 64,  80,  52,  76,   6),
+    P('Lee Bowyer',                'MID', 62,  72,  64,  80,   6),
+    P('Damien Johnson',            'MID', 46,  62,  72,  80,   6),
+    P('Stephen Clemence',          'MID', 48,  66,  66,  74,   6),
+    P('Emile Heskey',              'FWD', 76,  66,  34,  88,   6),
+    P('Mikael Forssell',           'FWD', 78,  70,  26,  78,   6),
+    P('Christophe Dugarry',        'FWD', 76,  84,  30,  70,   6),
+    P('Clinton Morrison',          'FWD', 72,  66,  28,  82,   6),
+    P('Cameron Jerome',            'FWD', 70,  60,  30,  88,   6),
+  ],
+},
 };
 
 /* ----------------------------------------------------------------------------
@@ -3421,7 +3645,8 @@ function testDraft(){
   newGame('free'); const f2 = GAME.seedKey;
   check('DRAFT: free play reseeds every game', f1 !== f2);
 
-  // A full automated playthrough: six rounds, six slots, no repeats.
+  // A full automated playthrough. A cell may come round again -- that is what
+  // makes a same-club link possible -- but a player never can.
   newGame('daily');
   let guard = 0;
   while(GAME.screen === 'draft' && guard++ < 50){
@@ -3439,8 +3664,16 @@ function testDraft(){
     new Set(Object.values(GAME.lineup).map(p=>p.name)).size === CONFIG.FORMATION.length);
   check('DRAFT: no player is drafted twice',
     new Set(GAME.picks.map(p=>p.player.name)).size === GAME.picks.length);
-  check('DRAFT: no club/era cell is drafted from twice',
-    new Set(GAME.picks.map(p=>p.club+'|'+p.era)).size === GAME.picks.length);
+  // Cells may repeat now, so the guard that matters is that a cell coming
+  // round again never re-offers someone already signed in an earlier round.
+  check('DRAFT: a repeated cell never re-offers a signed player',
+    GAME.picks.every((pick, i) => {
+      const earlier = GAME.picks.slice(0, i).map(p => p.player.name);
+      return !pick.offered.some(o => earlier.includes(o.name));
+    }),
+    GAME.picks.length + ' picks across ' +
+    new Set(GAME.picks.map(p=>p.club+'|'+p.era)).size + ' distinct cells');
+
   check('DRAFT: finishing the draft produces a season',
     GAME.screen === 'results' && GAME.result &&
     GAME.result.wins + GAME.result.draws + GAME.result.losses === CONFIG.SEASON.MATCHES);
