@@ -628,13 +628,28 @@ svg{display:block;}
 }
 .hero .sub b{ display:block; color:var(--ultra); font-weight:800; }
 
-.stage--title{ display:flex; flex-direction:column; justify-content:center; }
-.facts{ display:flex; flex-direction:column; gap:1px; margin:24px 0 4px;
+.stage--title{ display:flex; flex-direction:column; }
+.stage--title > :first-child{ margin-top:auto; }
+.stage--title > :last-child{ margin-bottom:auto; }
+/* The how-to is the functional half of this screen, so on a short phone the
+   masthead gives way to it rather than pushing it under the dock. */
+@media (max-height: 720px){
+  .hero{ padding:12px 0 4px; }
+  .hero .kicker{ margin-bottom:8px; }
+  .hero h1{ font-size:clamp(52px,17vw,76px); }
+  .hero .sub{ margin-top:12px; font-size:20px; max-width:18ch; }
+  .howto{ margin-top:16px; }
+  .step{ padding:9px 0; }
+}
+
+.howto{ display:flex; flex-direction:column; gap:1px; margin:24px 0 4px;
   border-top:1px solid var(--line); }
-.fact{ display:flex; align-items:baseline; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); }
-.fact .fnum{ font-family:var(--f-mono); font-variant-numeric:tabular-nums; font-weight:800; font-size:17px; color:var(--volt); width:38px; flex:none; letter-spacing:-.03em; }
-.fact .ftxt{ font-size:13px; color:var(--chalk-dim); line-height:1.4; }
-.fact .ftxt b{ color:var(--chalk-soft); font-weight:650; }
+.step{ display:flex; align-items:baseline; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); }
+.step .snum{ font-family:var(--f-mono); font-variant-numeric:tabular-nums; font-weight:800; font-size:17px; color:var(--volt); width:38px; flex:none; letter-spacing:-.03em; }
+.step .stxt{ font-size:13px; color:var(--chalk-dim); line-height:1.4; }
+.step .stxt b{ color:var(--chalk-soft); font-weight:650; }
+.howto .tip{ margin-top:12px; font-size:12px; line-height:1.5; color:var(--chalk-faint); }
+.howto .tip b{ color:var(--ultra); font-weight:700; }
 
 .bestchip{
   display:inline-flex; align-items:center; gap:8px; margin-top:16px;
@@ -4656,10 +4671,16 @@ function viewTitle(){
           ' spins. ' + squadWord()[0].toUpperCase() + squadWord().slice(1) +
           ' legends. <b>One impossible season.</b></p>' +
       '</div>' +
-      '<div class="facts">' +
-        '<div class="fact"><span class="fnum">38</span><span class="ftxt">matches</span></div>' +
-        '<div class="fact"><span class="fnum">12</span><span class="ftxt">draws that stopped the Invincibles</span></div>' +
-        '<div class="fact"><span class="fnum">0</span><span class="ftxt">teams have won all 38</span></div>' +
+      '<div class="howto">' +
+        '<div class="step"><span class="snum">1</span><span class="stxt">' +
+          'The reels stop on a <b>club</b> and an <b>era</b></span></div>' +
+        '<div class="step"><span class="snum">2</span><span class="stxt">' +
+          'Sign one of their players and give them a shirt</span></div>' +
+        '<div class="step"><span class="snum">3</span><span class="stxt">' +
+          squadWord()[0].toUpperCase() + squadWord().slice(1) +
+          ' rounds, then your side plays all 38</span></div>' +
+        '<p class="tip">Out of position wastes a legend. ' +
+          '<b>Two from one club and era</b> lift the whole side.</p>' +
       '</div>' +
       (best ? '<div class="bestchip">Best <b>' + best.wins + '&#8209;' + best.draws + '&#8209;' + best.losses + '</b></div>' : '') +
     '</div>' +
