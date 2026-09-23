@@ -229,7 +229,7 @@ by not spending a skip when the reels offer a club you have already signed
 from — rather than a plan you can execute. Making it the latter needs either
 the two-cell choice above or a squad budget.
 
-### 7. Squad traits, behind a flag
+### 7. Squad traits
 
 The ask: make a defender who is slightly lower rated but more physical
 sometimes the right pick. As written that could not work, because `playerOVR`
@@ -267,10 +267,12 @@ For a player who ignores traits entirely the game gets slightly *harder*
 (38-0 at 2.6% with traits on against 3.1% off), which is the right shape: the
 mechanic hands out nothing, it only rewards steering.
 
-The flag is real — `CONFIG.TRAITS.ENABLED` false restores `rating` to exactly
-`overall * chem`, and a test asserts it. It is set from `?traits=0`/`?traits=1`
-or the switch under the mode cards on the home screen, and remembered in
-`localStorage`. The how-to line on the home screen changes with it.
+It shipped behind a flag so both scoring models could be played side by side.
+Traits won that comparison, so the flag, the home-screen switch, the
+`?traits=` parameter and the stored preference were all removed rather than
+left in place — a setting nothing can change is the same dead constant the
+club-chemistry bonus had been, and this file exists partly to stop that
+happening twice. Traits are now simply part of the model.
 
 ### 8. Telling the two modes apart
 

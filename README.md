@@ -172,6 +172,22 @@ There is no bonus for fielding one player from each era. Seven picks across
 three eras land there by default, and paying out for the default is a rebate,
 not a reward.
 
+## Squad traits
+
+Four phase ratings say how good each line is. They do not say what kind of side
+this is, so a squad can be highly rated and still be a lightweight. Two
+attributes that feed every phase without dominating any — **physicality** and
+**creativity** — are aggregated across the whole seven and measured against a
+floor and a second, higher line. Below the floor it costs rating; above the
+higher line it earns some; in between, nothing, because the point is to have
+enough rather than to max it out.
+
+That shape is what makes the choice real. A defender's overall rating is
+already `0.62 defence + 0.24 physical + ..`, so trading one attribute for
+another at equal overall is neutral by construction. A floor your squad can be
+short of is not: the big, slightly worse defender is right when you need him
+and wrong when you do not, and which it is changes with your first few picks.
+
 The palette is only the four brand colours plus white, mapped semantically:
 
 | | |

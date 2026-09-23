@@ -648,7 +648,6 @@ svg{display:block;}
   .dock{ padding-top:9px; }
   .modecard{ padding:9px 11px 10px; }
   .modecard .mc-desc{ font-size:11px; line-height:1.3; }
-  .traitsw{ margin-top:6px; }
 }
 
 .howto{ display:flex; flex-direction:column; gap:1px; margin:24px 0 4px;
@@ -820,15 +819,6 @@ svg{display:block;}
 .squadtraits .tr em{ font-style:normal; font-size:10px; color:var(--chalk-ghost); }
 .squadtraits .tr.low{ color:var(--flare); }
 .squadtraits .tr.high{ color:var(--ultra); }
-
-.traitsw{
-  display:flex; align-items:center; gap:8px; margin:10px auto 0;
-  background:none; border:none; padding:4px 2px; cursor:pointer;
-  font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
-  color:var(--chalk-ghost);
-}
-.traitsw .tsw-val{ color:var(--chalk-faint); }
-.traitsw .tsw-val.on{ color:var(--volt); }
 
 .linknote{
   margin-top:9px; font-size:11px; font-weight:700; letter-spacing:.09em;
@@ -1068,7 +1058,7 @@ const CONFIG = {
     FORM_SWING: 15,
   },
 
-  /* ---- Squad traits (behind a flag) ----
+  /* ---- Squad traits ----
      The four phases already say how good each line is. They do not say what
      kind of side this is. `physical` and `creativity` are the two attributes
      that feed every phase without dominating any of them, so a squad can be
@@ -1086,9 +1076,13 @@ const CONFIG = {
      Measured over 2,500 well-drafted sides: physicality runs p05 79.9 /
      median 84.0 / p95 87.1, creativity p05 66.9 / median 71.6 / p95 76.0.
      Chasing a trait outright is worth about +6 physicality or +9 creativity,
-     so there is real headroom to steer into. ---- */
+     so there is real headroom to steer into.
+
+     Measured against the alternative: a bot that pays a little OVR for trait
+     edge beats a trait-blind one by +0.90 wins a season, where the same bot
+     chasing club chemistry gained +0.00. That gap is why this is in the
+     model rather than behind a switch. ---- */
   TRAITS: {
-    ENABLED: true,          // flipped at boot from ?traits= or storage
     LIST: [
       { key:'physical',   label:'Physicality', short:'PHY',
         min:83, strong:86, penalty:0.80, bonus:0.70 },
@@ -3327,7 +3321,7 @@ function analyseLineup(lineup){
     const shortfall = Math.max(0, t.min - value);
     const surplus   = Math.max(0, value - t.strong);
     const edge = surplus * t.bonus - shortfall * t.penalty;
-    if(T.ENABLED) traitEdge += edge;
+    traitEdge += edge;
     return { key:t.key, label:t.label, short:t.short, min:t.min, strong:t.strong,
              value, shortfall, surplus, edge, failing: shortfall > 0 };
   });
@@ -4489,9 +4483,6 @@ function testDraft(){
       }
       return L;
     })());
-    const wasOn = CONFIG.TRAITS.ENABLED;
-
-    CONFIG.TRAITS.ENABLED = true;
     const onBig = analyseLineup(build('physical'));
     check('TRAITS: a physical side scores above a slight one on the trait',
       big.traits[0].value > small.traits[0].value + 5,
@@ -4502,14 +4493,6 @@ function testDraft(){
     check('TRAITS: the swing is capped so it never outweighs the squad',
       Math.abs(onBig.traitEdge) <= CONFIG.TRAITS.MAX_SWING + 1e-9,
       onBig.traitEdge.toFixed(2) + ' within +/-' + CONFIG.TRAITS.MAX_SWING);
-
-    CONFIG.TRAITS.ENABLED = false;
-    const off = analyseLineup(build('physical'));
-    check('TRAITS: the flag is a real off switch',
-      off.traitEdge === 0 && Math.abs(off.rating - off.overall * off.chem) < 1e-9,
-      'traitEdge ' + off.traitEdge + ', rating matches the untouched formula');
-
-    CONFIG.TRAITS.ENABLED = wasOn;
   })();
 
   // The same-club bonus was unreachable for a long time: the spin refused to
@@ -4819,10 +4802,8 @@ function viewTitle(){
         '<div class="step"><span class="snum">3</span><span class="stxt">' +
           'Do that ' + squadWord() + ' times, then watch your team play a whole season' +
           '</span></div>' +
-        '<p class="tip">Bonus points for multiple players from the same dressing room' +
-          (CONFIG.TRAITS.ENABLED
-            ? ', and for making sure your team has both <b>physicality and creativity</b>.'
-            : '.') + '</p>' +
+        '<p class="tip">Bonus points for multiple players from the same dressing room, ' +
+          'and for making sure your team has both <b>physicality and creativity</b>.</p>' +
       '</div>' +
       (best ? '<div class="bestchip">Best <b>' + best.wins + '&#8209;' + best.draws + '&#8209;' + best.losses + '</b></div>' : '') +
     '</div>' +
@@ -4835,7 +4816,6 @@ function viewTitle(){
         }) +
         modeCardHTML({ act:'new-free', name:'Free draft', desc:'New spins every time' }) +
       '</div>' +
-      traitToggleHTML() +
     '</div>' +
   '</div>';
 }
@@ -4847,7 +4827,7 @@ function viewTitle(){
 /** The trait lines on the results screen: what kind of side this was, and
     whether that cost or earned anything. */
 function traitReportHTML(a){
-  if(!CONFIG.TRAITS.ENABLED || !a.traits) return '';
+  if(!a.traits) return '';
   const rows = a.traits.map(t => {
     const cls = t.shortfall > 0 ? 'bad' : (t.surplus > 0 ? 'good' : '');
     const note = t.shortfall > 0
@@ -4869,7 +4849,6 @@ function traitReportHTML(a){
     whole mechanic is invisible until the season is already played, and a lever
     you cannot see is not a lever. */
 function squadTraitHTML(){
-  if(!CONFIG.TRAITS.ENABLED) return '';
   const signed = CONFIG.FORMATION.filter(sl => GAME.lineup[sl.id]).length;
   if(!signed) return '';
   const a = analyseLineup(GAME.lineup);
@@ -4879,14 +4858,6 @@ function squadTraitHTML(){
       Math.round(t.value) + '<em>/' + t.min + '</em></span>';
   }).join('');
   return '<div class="squadtraits">' + cells + '</div>';
-}
-
-function traitToggleHTML(){
-  const on = CONFIG.TRAITS.ENABLED;
-  return '<button class="traitsw" data-act="traits" aria-pressed="' + (on?'true':'false') + '">' +
-      '<span class="tsw-lab">Squad traits</span>' +
-      '<span class="tsw-val' + (on?' on':'') + '">' + (on ? 'On' : 'Off') + '</span>' +
-    '</button>';
 }
 
 /* ============================================================================
@@ -5547,12 +5518,6 @@ function onAction(e){
     case 'quit-no':  GAME.confirmQuit = false; render(); break;
     case 'quit-yes': GAME.confirmQuit = false; GAME.screen = 'title'; render(); break;
 
-    case 'traits':
-      CONFIG.TRAITS.ENABLED = !CONFIG.TRAITS.ENABLED;
-      try{ localStorage.setItem(TRAITS_KEY, CONFIG.TRAITS.ENABLED ? '1' : '0'); }catch(e){}
-      render();
-      break;
-
     case 'sound':
       SFX.on = !SFX.on;
       if(SFX.on){ SFX.init(); SFX.detent(); }
@@ -5705,25 +5670,9 @@ function esc(s){
 /* ============================================================================
    BOOT
    ============================================================================ */
-/** Where the squad-traits preview flag is remembered. */
-const TRAITS_KEY = CONFIG.STORAGE_KEY + '.traits';
-
 function boot(){
   const params = new URLSearchParams(location.search);
   if(params.get('test') === '1'){ runTests(); return; }
-
-  // Squad traits are behind a flag while both versions are being compared.
-  // ?traits=0 or 1 wins for this load; otherwise the last choice stands.
-  try{
-    const q = params.get('traits');
-    if(q === '0' || q === '1'){
-      CONFIG.TRAITS.ENABLED = q === '1';
-      localStorage.setItem(TRAITS_KEY, q);
-    } else {
-      const pref = localStorage.getItem(TRAITS_KEY);
-      if(pref !== null) CONFIG.TRAITS.ENABLED = pref === '1';
-    }
-  }catch(e){}
 
   // Sound preference is a convenience, never a hard dependency.
   try{
