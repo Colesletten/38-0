@@ -229,7 +229,50 @@ by not spending a skip when the reels offer a club you have already signed
 from — rather than a plan you can execute. Making it the latter needs either
 the two-cell choice above or a squad budget.
 
-### 7. Telling the two modes apart
+### 7. Squad traits, behind a flag
+
+The ask: make a defender who is slightly lower rated but more physical
+sometimes the right pick. As written that could not work, because `playerOVR`
+**is** the position-weighted blend — a DEF's overall is
+`0.62 defence + 0.24 physical + 0.09 creativity + 0.05 attack`, so a defender
+with more physical at the same OVR necessarily has less defence. Trading one
+for the other is neutral by construction, and no amount of reweighting the
+attributes changes that.
+
+What creates a choice is a **floor to clear and a level past which more stops
+paying**. `CONFIG.TRAITS` aggregates two attributes across the whole seven —
+`physical` and `creativity`, the two that feed every phase without dominating
+any — and scores the squad against a `min` and a `strong` line. Below `min` it
+costs rating; above `strong` it earns some; between them, nothing. The total is
+clamped to `MAX_SWING` (6 rating points) so a trait is worth steering for
+without ever outweighing who you actually signed.
+
+Thresholds come from the measured distribution over 2,500 well-drafted sides:
+physicality p05 79.9 / median 84.0 / p95 87.1, creativity p05 66.9 / median
+71.6 / p95 76.0. Deliberately chasing one is worth about +6 physicality or
++9 creativity, so there is real headroom to steer into.
+
+**It passes the test chemistry failed.** A bot that pays a little OVR for
+trait edge beats a trait-blind bot by **+0.90 wins a season** (mean 31.45 vs
+30.55 over 2,500 drafts each), and lifts the perfect-season rate from 2.7% to
+3.2%. The same experiment on club chemistry produced an edge of **+0.00**. The
+difference is where the decision lives: chemistry is settled by the spin before
+you touch anything, while a trait is settled by which card you tap.
+
+Over-chasing is punished too — paying 6 OVR per rating point of trait edge
+drops the advantage back to +0.42. There is a wrong answer in both directions,
+which is what makes it a skill rather than a tax.
+
+For a player who ignores traits entirely the game gets slightly *harder*
+(38-0 at 2.6% with traits on against 3.1% off), which is the right shape: the
+mechanic hands out nothing, it only rewards steering.
+
+The flag is real — `CONFIG.TRAITS.ENABLED` false restores `rating` to exactly
+`overall * chem`, and a test asserts it. It is set from `?traits=0`/`?traits=1`
+or the switch under the mode cards on the home screen, and remembered in
+`localStorage`. The how-to line on the home screen changes with it.
+
+### 8. Telling the two modes apart
 
 Reported as "I keep getting Aston Villa and West Ham, it's the same sequence
 every time". It was not a randomness bug — free play's seeding measured clean
