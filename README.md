@@ -145,6 +145,15 @@ darker than the ground, so they read as texture behind the content rather than
 competing with it. The rake belongs to the background alone — the interface on
 top of it stays square.
 
+Restraint is the rule on top of it. A stroke has to earn its place: only the
+buttons and the two mode cards are boxed, because those are the things you
+press. Everything else — player cards, tiles, chips, the reel — separates on
+tone alone. Section headings carry no decorative rule, the results screen
+states each fact once, and the player card gives the five ratings as one line
+of numbers rather than five labelled bars. The figures are comparable, so a
+column of them scans faster than a column of bars and costs a quarter of the
+room.
+
 The palette is only the four brand colours plus white, mapped semantically:
 
 | | |

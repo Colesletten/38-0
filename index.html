@@ -213,14 +213,16 @@ body{
   left:var(--x); width:var(--w); top:var(--t); height:var(--h);
   background:var(--ink-900);
   transform:skewX(-15deg);
-  clip-path:polygon(0 0, 100% 0, 100% calc(100% - 38px), 50% 100%, 0 calc(100% - 38px));
+  clip-path:polygon(0 0, 100% 0, 100% calc(100% - 62px), 50% 100%, 0 calc(100% - 62px));
 }
-.chevrons i:nth-child(1){ --x:2%;  --w:40px; --t:-14%; --h:78%;  }
-.chevrons i:nth-child(2){ --x:12%; --w:72px; --t:-14%; --h:132%; }
-.chevrons i:nth-child(3){ --x:39%; --w:38px; --t:42%;  --h:78%;  }
-.chevrons i:nth-child(4){ --x:57%; --w:58px; --t:-14%; --h:66%;  }
-.chevrons i:nth-child(5){ --x:76%; --w:80px; --t:-14%; --h:134%; }
-.chevrons i:nth-child(6){ --x:93%; --w:44px; --t:26%;  --h:92%;  }
+/* clustered in pairs, a wide bar beside a narrow one, the way the reference
+   groups them — never an even rhythm */
+.chevrons i:nth-child(1){ --x:1%;  --w:34px; --t:-16%; --h:72%;  }
+.chevrons i:nth-child(2){ --x:9%;  --w:76px; --t:-16%; --h:138%; }
+.chevrons i:nth-child(3){ --x:36%; --w:44px; --t:38%;  --h:86%;  }
+.chevrons i:nth-child(4){ --x:63%; --w:84px; --t:-16%; --h:120%; }
+.chevrons i:nth-child(5){ --x:80%; --w:32px; --t:-16%; --h:58%;  }
+.chevrons i:nth-child(6){ --x:91%; --w:56px; --t:30%;  --h:96%;  }
 /* the shell's own content sits above the field */
 .shell > .topbar, .shell > .stage, .shell > .dock{ position:relative; z-index:1; }
 
@@ -306,7 +308,7 @@ svg{display:block;}
   background:transparent;
   color:var(--chalk); box-shadow:none;
   font-family:var(--f-display); font-weight:700; font-size:13.5px;
-  letter-spacing:.06em; text-transform:uppercase;
+  letter-spacing:.06em; word-spacing:.1em; text-transform:uppercase;
   transition:transform var(--dur-1) var(--ease-out),
              box-shadow var(--dur-2) var(--ease-out),
              background var(--dur-2) var(--ease-out),
@@ -344,18 +346,17 @@ svg{display:block;}
   display:flex; align-items:center; gap:12px;
   padding:calc(12px + var(--safe-t)) var(--pad) 12px;
   background:var(--ink-900);
-  border-bottom:2px solid var(--volt);
 }
 .topbar .mark{ font-family:var(--f-display); font-weight:800; font-size:19px; letter-spacing:-.02em; }
 .topbar .mark b{ color:var(--volt); }
 .topbar .spacer{ flex:1; }
 .iconbtn{
   width:34px; height:34px; display:grid; place-items:center;
-  border-radius:var(--r-sm); border:1px solid var(--line); color:var(--chalk-dim);
-  transition:color var(--dur-1), border-color var(--dur-1), background var(--dur-1);
+  border-radius:var(--r-sm); border:none; color:var(--chalk-faint);
+  transition:color var(--dur-1), background var(--dur-1);
 }
-.iconbtn:hover{ color:var(--chalk); border-color:var(--line-strong); background:rgba(255,255,255,.04); }
-.iconbtn[aria-pressed="true"]{ color:var(--volt); border-color:var(--volt); }
+.iconbtn:hover{ color:var(--chalk); background:rgba(255,255,255,.08); }
+.iconbtn[aria-pressed="true"]{ color:var(--volt); }
 
 /* ---- Mode cards: the two ways to play, side by side and equal height ---- */
 .modes{ display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:stretch; }
@@ -423,12 +424,12 @@ svg{display:block;}
 .reelbay{
   position:relative; display:grid; grid-template-columns:1.35fr 1fr; gap:10px;
   padding:12px; margin-top:14px;
-  border:1px solid var(--line); border-radius:var(--r-md);
+  border-radius:var(--r-md);
   background:var(--ink-900);
 }
 .reel{
   position:relative; height:104px; overflow:hidden; border-radius:var(--r-sm);
-  background:var(--ink-750); border:1px solid transparent;
+  background:var(--ink-750);
 }
 .reel::before,.reel::after{
   content:""; position:absolute; left:0; right:0; height:30px; z-index:2; pointer-events:none;
@@ -446,7 +447,6 @@ svg{display:block;}
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
 }
 .reel-item .rera{ font-family:var(--f-display); font-weight:900; font-size:30px; letter-spacing:-.045em; }
-.reel.locked{ border-color:var(--volt); }
 
 .reel-cap{
   position:absolute; top:8px; left:10px; z-index:3;
@@ -455,9 +455,9 @@ svg{display:block;}
 }
 
 /* ---- Section heads ---- */
-.sechead{ display:flex; align-items:baseline; gap:10px; margin:22px 0 10px; }
-.sechead h2{ font-family:var(--f-display); font-weight:800; font-size:17px; letter-spacing:-.012em; text-transform:uppercase; }
-.sechead .rule{ flex:1; height:1px; background:linear-gradient(90deg,var(--line-strong),transparent); }
+.sechead{ display:flex; align-items:baseline; gap:12px; margin:22px 0 10px; }
+.sechead h2{ font-family:var(--f-display); font-weight:800; font-size:17px; letter-spacing:.004em; word-spacing:.12em; text-transform:uppercase; }
+.sechead .label{ margin-left:auto; }
 
 /* ---- Line filters ---- */
 .filters{
@@ -469,12 +469,12 @@ svg{display:block;}
 .chip{
   flex:1; display:inline-flex; align-items:center; justify-content:center; gap:5px;
   min-height:34px; padding:0 4px; border-radius:var(--r-sm);
-  border:1px solid var(--line); background:var(--ink-800); color:var(--chalk-dim);
+  border:none; background:var(--ink-750); color:var(--chalk-dim);
   font-size:11px; font-weight:750; letter-spacing:.07em;
   transition:color var(--dur-1), border-color var(--dur-1), background var(--dur-1);
 }
-.chip:hover:not(:disabled){ color:var(--chalk); border-color:var(--line-strong); }
-.chip.on{ background:var(--volt); color:var(--volt-ink); border-color:var(--volt); }
+.chip:hover:not(:disabled){ color:var(--chalk); background:var(--ink-700); }
+.chip.on{ background:var(--volt); color:var(--volt-ink); }
 .chip.on .chipn{ color:var(--volt-ink); opacity:.6; }
 .chip:disabled{ opacity:.3; }
 /* a line you have already filled twice over */
@@ -488,8 +488,8 @@ svg{display:block;}
 .pool{ display:flex; flex-direction:column; gap:8px; }
 .pcard{
   position:relative; display:flex; align-items:center; gap:12px;
-  width:100%; padding:11px 13px 11px 16px; text-align:left;
-  border:1px solid var(--line); border-radius:var(--r-sm);
+  width:100%; padding:10px 13px; text-align:left;
+  border:none; border-radius:var(--r-sm);
   background:var(--ink-750);
   box-shadow:none;
   transition:transform var(--dur-1) var(--ease-out), border-color var(--dur-2),
@@ -497,15 +497,9 @@ svg{display:block;}
   animation:cardIn var(--dur-3) var(--ease-out) backwards;
 }
 @keyframes cardIn{ from{ opacity:0; transform:translateY(9px); } to{ opacity:1; transform:none; } }
-/* A straight bar of the club's colour. The rake belongs to the background;
-   the interface itself stays square. */
-.pcard::before{
-  content:""; position:absolute; left:0; top:0; bottom:0; width:5px;
-  background:var(--accent,var(--ink-500));
-}
-.pcard:hover{ border-color:var(--chalk-ghost); background:var(--ink-700); }
+.pcard:hover{ background:var(--ink-700); }
 .pcard:active{ transform:scale(.99); }
-.pcard.is-sel{ border-color:var(--volt); }
+.pcard.is-sel{ background:var(--ink-700); }
 .pcard .pmain{ flex:1; min-width:0; }
 .pcard .pname{
   font-family:var(--f-display); font-weight:800; font-size:15.5px;
@@ -513,14 +507,20 @@ svg{display:block;}
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .pcard .pmeta{ display:flex; align-items:center; gap:7px; margin-top:4px; }
+.rats{
+  display:flex; gap:9px; margin-top:6px;
+  font-family:var(--f-mono); font-variant-numeric:tabular-nums;
+  font-size:11px; font-weight:700; letter-spacing:-.02em; color:var(--chalk-soft);
+}
+.rats span{ display:inline-flex; align-items:baseline; gap:3px; }
+.rats i{ font-style:normal; font-size:8.5px; font-weight:700; letter-spacing:.08em; color:var(--chalk-ghost); }
+@media (max-width:370px){ .rats{ gap:7px; font-size:10.5px; } .rats i{ font-size:8px; } }
 .ovr{
   flex:none; width:46px; text-align:center;
   font-family:var(--f-mono); font-variant-numeric:tabular-nums;
   font-size:23px; font-weight:800; letter-spacing:-.045em; line-height:1;
   color:var(--chalk);
 }
-.ovr small{ display:block; font-family:var(--f-ui); font-size:8.5px; font-weight:700;
-  letter-spacing:.14em; color:var(--chalk-ghost); margin-top:3px; }
 
 .posbadge{
   flex:none; font-size:9.5px; font-weight:800; letter-spacing:.1em;
@@ -536,18 +536,6 @@ svg{display:block;}
 .fithint.ok{ color:var(--ultra); } .fithint.mid{ color:var(--chalk-dim); }
 .fithint.warn{ color:var(--warn); } .fithint.bad{ color:var(--flare); }
 
-/* five micro attribute bars */
-.attrs{ display:flex; gap:3px; margin-top:8px; }
-.attr{ flex:1; }
-.attr i{
-  display:block; height:3px; border-radius:1px;
-  background:rgba(255,255,255,.18); position:relative; overflow:hidden;
-}
-.attr i::after{
-  content:""; position:absolute; inset:0 auto 0 0; width:var(--v,0%);
-  background:var(--attrc,var(--chalk-dim)); border-radius:2px;
-}
-.attr span{ display:block; font-size:7.5px; letter-spacing:.1em; color:var(--chalk-ghost); margin-top:3px; text-align:center; }
 
 /* ---- Lineup strip (sticky mini-pitch) ---- */
 .lineup{
@@ -557,10 +545,10 @@ svg{display:block;}
 .slotmini{
   flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:4px;
   padding:7px 2px 6px; border-radius:var(--r-sm);
-  border:1px dashed var(--line-strong); background:rgba(255,255,255,.015);
+  border:none; background:transparent;
   transition:border-color var(--dur-2), background var(--dur-2), transform var(--dur-2) var(--ease-spring);
 }
-.slotmini.filled{ border-style:solid; border-color:var(--line-strong); background:var(--ink-750); }
+.slotmini.filled{ background:var(--ink-750); }
 .slotmini.just{ animation:pop var(--dur-4) var(--ease-spring); }
 @keyframes pop{ 0%{transform:scale(.82);} 60%{transform:scale(1.05);} 100%{transform:scale(1);} }
 .slotmini .sm-pos{ font-size:8.5px; font-weight:800; letter-spacing:.1em; color:var(--chalk-ghost); }
@@ -597,14 +585,14 @@ svg{display:block;}
 .slotline{ display:grid; grid-template-columns:repeat(var(--n),1fr); gap:8px; }
 .spick{
   display:flex; flex-direction:column; align-items:center; gap:4px;
-  padding:13px 6px; border-radius:var(--r-md);
-  border:1px solid var(--line); background:var(--ink-800); color:var(--chalk-soft);
+  padding:13px 6px; border-radius:var(--r-sm);
+  border:none; background:var(--ink-750); color:var(--chalk-soft);
   transition:border-color var(--dur-2), background var(--dur-2), transform var(--dur-1), color var(--dur-2);
 }
-.spick:hover:not(:disabled){ border-color:var(--line-strong); background:var(--ink-750); color:var(--chalk); }
+.spick:hover:not(:disabled){ background:var(--ink-700); color:var(--chalk); }
 .spick:active:not(:disabled){ transform:scale(.97); }
 .spick:disabled{ opacity:.3; }
-.spick.natural{ border-color:var(--ultra); }
+.spick.natural{ box-shadow:inset 0 -2px 0 var(--ultra); }
 .spick .sp-role{ font-family:var(--f-display); font-weight:900; font-size:15px; letter-spacing:-.01em; }
 .spick .sp-fit{ font-size:9.5px; font-weight:700; letter-spacing:.08em; color:var(--chalk-ghost); }
 .spick .sp-fit.ok{ color:var(--ultra); } .spick .sp-fit.mid{ color:var(--chalk-dim); }
@@ -640,6 +628,7 @@ svg{display:block;}
 }
 .hero .sub b{ display:block; color:var(--ultra); font-weight:800; }
 
+.stage--title{ display:flex; flex-direction:column; justify-content:center; }
 .facts{ display:flex; flex-direction:column; gap:1px; margin:24px 0 4px;
   border-top:1px solid var(--line); }
 .fact{ display:flex; align-items:baseline; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); }
@@ -650,8 +639,8 @@ svg{display:block;}
 .bestchip{
   display:inline-flex; align-items:center; gap:8px; margin-top:16px;
   padding:7px 12px; border-radius:var(--r-pill);
-  border:1px solid var(--line); background:rgba(255,255,255,.02);
-  font-size:11.5px; color:var(--chalk-dim);
+  border:none; background:rgba(255,255,255,.09);
+  font-size:11.5px; color:var(--chalk-soft);
 }
 .bestchip b{ font-family:var(--f-mono); font-variant-numeric:tabular-nums; font-weight:700; color:var(--chalk); letter-spacing:-.02em; }
 
@@ -711,19 +700,16 @@ svg{display:block;}
 .pbar i:first-child{ border-radius:2px 0 0 2px; } .pbar i:last-child{ border-radius:0 2px 2px 0; }
 .pbar i:only-child{ border-radius:2px; }
 .pbar i.w{ background:var(--ultra); } .pbar i.d{ background:var(--volt); } .pbar i.l{ background:var(--flare); }
-.pkey{ display:flex; gap:14px; margin-top:12px; font-size:10px; color:var(--chalk-faint); }
-.pkey span{ display:inline-flex; align-items:center; gap:5px; }
-.pkey i{ width:8px; height:8px; border-radius:2px; }
 
 /* ---- Key men ---- */
 .tiles{ display:flex; flex-direction:column; gap:8px; }
 .tile{
-  display:flex; align-items:center; gap:12px; padding:12px 14px;
-  border:1px solid var(--line); border-radius:var(--r-sm); background:var(--ink-750);
+  display:flex; align-items:center; gap:14px; padding:12px 14px;
+  border-radius:var(--r-sm); background:var(--ink-750);
 }
 .tile .tkey{
-  flex:none; width:70px; font-size:9.5px; font-weight:700; letter-spacing:.11em;
-  text-transform:uppercase; color:var(--chalk-ghost); line-height:1.35;
+  display:block; margin-bottom:5px; font-size:9.5px; font-weight:700; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--chalk-ghost); line-height:1;
 }
 .tile .tbody{ flex:1; min-width:0; }
 .tile .tname{
@@ -3464,31 +3450,32 @@ function seasonReport(result, lineup, picks){
 
   /* ---- what to fix, worst problem first ---- */
   const advice = [];
+  const gateFailed = new Set();
   for(const g of a.gates){
+    if(g.failing) gateFailed.add(g.label);
     if(g.failing) advice.push({
       weight: 100 + g.shortfall,
       head: g.label + ' was below the line',
-      body: g.label + ' came in at ' + g.value.toFixed(0) + ', under the ' + g.min +
-            ' a side needs. That is what started costing you points from matchday ' +
-            (CONFIG.GATE_BITE_FROM + 1) + '.',
+      body: g.value.toFixed(0) + ' against the ' + g.min + ' a side needs. It started costing you ' +
+            'from matchday ' + (CONFIG.GATE_BITE_FROM + 1) + '.',
     });
   }
   for(const pl of players){
     if(pl.outOfPosition && pl.effectiveness < 0.92) advice.push({
       weight: 80 + (1 - pl.effectiveness) * 40,
       head: pl.player.name + ' played out of position',
-      body: 'A ' + pl.player.position + ' in a ' + pl.slot.short + ' shirt is worth about ' +
-            Math.round(pl.effectiveness * 100) + '% of himself. You lost the rest.',
+      body: 'A ' + pl.player.position + ' in a ' + pl.slot.short + ' shirt is worth ' +
+            Math.round(pl.effectiveness * 100) + '% of himself.',
     });
   }
   // Every phase short of the standard, not only the worst one.
   for(const g of gaps){
     if(g.gap <= R.GAP_WORTH_MENTIONING) continue;
+    if(gateFailed.has(g.label)) continue;
     advice.push({
       weight: 60 + g.gap,
       head: g.label + (g === biggestGap ? ' was your weak suit' : ' was short too'),
-      body: g.label + ' finished on ' + g.value.toFixed(0) + ' against the ' + g.benchmark +
-            ' a title-winning seven carries. Spend a pick there next time.',
+      body: g.value.toFixed(0) + ' against the ' + g.benchmark + ' a title-winning seven carries.',
     });
   }
 
@@ -3497,30 +3484,25 @@ function seasonReport(result, lineup, picks){
     advice.push({
       weight: 30 + worstPeriod.dropped,
       head: 'The run-in caught you',
-      body: 'You dropped ' + worstPeriod.dropped + ' of your ' +
-            (periods.reduce((n,pp)=>n+pp.dropped,0)) + ' lost points in the last ' +
-            worstPeriod.played + ' matches, when the fixtures are hardest and any phase ' +
-            'below its line starts to tell.',
+      body: worstPeriod.dropped + ' of your ' + (periods.reduce((n,pp)=>n+pp.dropped,0)) +
+            ' dropped points came in the last ' + worstPeriod.played + ' matches.',
     });
   }
   if(worst && worst.added < -R.WEAK_LINK_MARGIN) advice.push({
     weight: 50 + Math.abs(worst.added),
     head: worst.player.name + ' was below replacement level',
-    body: 'He gave you about ' + Math.abs(worst.added).toFixed(0) +
-          ' less than an ordinary ' + worst.slot.short + ' would have.',
+    body: Math.abs(worst.added).toFixed(0) + ' below an ordinary ' + worst.slot.short + '.',
   });
   if(missed && missed.gain > 4) advice.push({
     weight: 40 + missed.gain,
     head: 'You passed on ' + missed.alternative.name,
-    body: 'In round ' + (missed.round + 1) + ' he was on the same board as ' +
-          missed.taken.name + ', and would have been worth about ' + missed.gain.toFixed(0) +
-          ' more at ' + missed.slot.short + '.',
+    body: 'Same board as ' + missed.taken.name + ' in round ' + (missed.round + 1) +
+          '. Worth ' + missed.gain.toFixed(0) + ' more at ' + missed.slot.short + '.',
   });
   if(a.chem < 0.97) advice.push({
     weight: 20 + (1 - a.chem) * 60,
     head: a.chem < 0.88 ? 'The seven did not fit together' : 'Chemistry left a little on the table',
-    body: 'Chemistry landed at ' + (a.chem*100).toFixed(0) + '%. Players from the same club and ' +
-          'era help, and so does a squad without one phase miles ahead of the rest.',
+    body: 'Chemistry ' + (a.chem*100).toFixed(0) + '%. Same club and era helps, so does balance.',
   });
   advice.sort((x, y) => y.weight - x.weight);
 
@@ -4489,17 +4471,19 @@ function crestSVG(club, size){
   '</svg>';
 }
 
+/** The five ratings a pick turns on, shortest useful form: a label and a
+    number. Bars and their repeated legends cost more room than they bought. */
 const ATTR_KEYS = [
-  { k:'attack',     s:'ATT', c:'var(--flare)' },
-  { k:'creativity', s:'CRE', c:'var(--ultra)' },
-  { k:'defense',    s:'DEF', c:'var(--volt)' },
-  { k:'physical',   s:'PHY', c:'rgba(255,255,255,.75)' },
-  { k:'gk',         s:'GK',  c:'var(--warn)' },
+  { k:'attack',     s:'ATT' },
+  { k:'creativity', s:'CRE' },
+  { k:'defense',    s:'DEF' },
+  { k:'physical',   s:'PHY' },
+  { k:'gk',         s:'GK'  },
 ];
 
-function attrsHTML(p){
-  return '<div class="attrs">' + ATTR_KEYS.map(a =>
-    '<div class="attr"><i style="--v:'+clamp(p.ratings[a.k],0,100)+'%;--attrc:'+a.c+'"></i><span>'+a.s+'</span></div>'
+function ratingsHTML(p){
+  return '<div class="rats">' + ATTR_KEYS.map(a =>
+    '<span><i>' + a.s + '</i>' + Math.round(p.ratings[a.k]) + '</span>'
   ).join('') + '</div>';
 }
 
@@ -4530,7 +4514,7 @@ function viewTitle(){
   const daily = loadDaily();
   return '<div class="shell">' +
     topbarHTML({ minimal:true }) +
-    '<div class="stage">' +
+    '<div class="stage stage--title">' +
       '<div class="hero">' +
         '<p class="eyebrow kicker">Premier League &middot; team&#8209;builder</p>' +
         '<h1>38<em>&#8209;</em>0</h1>' +
@@ -4539,30 +4523,20 @@ function viewTitle(){
           ' legends. <b>One impossible season.</b></p>' +
       '</div>' +
       '<div class="facts">' +
-        '<div class="fact"><span class="fnum">38</span><span class="ftxt">matches in a Premier League season</span></div>' +
-        '<div class="fact"><span class="fnum">12</span><span class="ftxt">draws that stopped Arsenal&rsquo;s <b>2003&#8209;04 Invincibles</b> going perfect</span></div>' +
-        '<div class="fact"><span class="fnum">0</span><span class="ftxt">teams have ever won <b>all thirty&#8209;eight</b></span></div>' +
+        '<div class="fact"><span class="fnum">38</span><span class="ftxt">matches</span></div>' +
+        '<div class="fact"><span class="fnum">12</span><span class="ftxt">draws that stopped the Invincibles</span></div>' +
+        '<div class="fact"><span class="fnum">0</span><span class="ftxt">teams have won all 38</span></div>' +
       '</div>' +
-      '<p class="note" style="margin-top:18px">The machine spins a club and an era. You take one player from that squad and give them a shirt. Do it ' +
-        squadWord() + ' times, then we play the season out &mdash; and however good your side is, no match is ever a formality.</p>' +
-      (best ? '<div class="bestchip">Personal best <b>' + best.wins + '&#8209;' + best.draws + '&#8209;' + best.losses +
-        '</b> &middot; ' + esc(best.verdict) + '</div>' : '') +
+      (best ? '<div class="bestchip">Best <b>' + best.wins + '&#8209;' + best.draws + '&#8209;' + best.losses + '</b></div>' : '') +
     '</div>' +
     '<div class="dock">' +
-      '<p class="eyebrow" style="margin-bottom:9px">Two ways to play</p>' +
       '<div class="modes">' +
         modeCardHTML({
           act:'new-daily', name:'Today&rsquo;s draft', accent:true, tag: utcDateKey(),
-          desc:'The same seven spins for everyone, until midnight UTC.',
-          status: daily
-            ? 'Played ' + daily.wins + '&#8209;' + daily.draws + '&#8209;' + daily.losses +
-              ' &middot; replays the same'
-            : '',
+          desc:'Same spins for everyone',
+          status: daily ? 'Played ' + daily.wins + '&#8209;' + daily.draws + '&#8209;' + daily.losses : '',
         }) +
-        modeCardHTML({
-          act:'new-free', name:'Free draft',
-          desc:'New spins every single time. Play as often as you like.',
-        }) +
+        modeCardHTML({ act:'new-free', name:'Free draft', desc:'New spins every time' }) +
       '</div>' +
     '</div>' +
   '</div>';
@@ -4649,8 +4623,7 @@ function viewDraft(){
     const shown = visibleOffered();
     body =
       skipsHTML() +
-      '<div class="sechead"><h2>Take one</h2><span class="rule"></span>' +
-        '<span class="label">' + GAME.offered.length + ' available</span></div>' +
+      '<div class="sechead"><h2>Take one</h2></div>' +
       filterBarHTML() +
       (shown.length
         ? '<div class="pool">' + shown.map(o => playerCardHTML(o.p, o.i, o.n)).join('') + '</div>'
@@ -4659,13 +4632,7 @@ function viewDraft(){
   }else{
     // Idle and spinning share a body, so the screen does not collapse to a void
     // for two seconds while the reels run.
-    body =
-      '<div class="sechead"><h2>Round ' + (GAME.round+1) + '</h2><span class="rule"></span>' +
-        '<span class="label">' + (CONFIG.DRAFT.ROUNDS - GAME.round) + ' picks left</span></div>' +
-      '<p class="note">' + (spinning
-        ? 'The machine is choosing where you shop.'
-        : 'Pull the handle. The machine picks a club and an era; you pick the player.') + '</p>' +
-      (GAME.picks.length ? recentPicksHTML() : '');
+    body = GAME.picks.length ? recentPicksHTML() : '';
   }
 
   /* --- dock: the lineup so far, plus the primary action --- */
@@ -4761,17 +4728,16 @@ function effClass(eff){
 }
 
 function playerCardHTML(p, i, n){
-  const m = CLUB_META[p.club] || {};
   const delay = Math.min(14, n === undefined ? i : n) * 26;   // cap the cascade
   return '<button class="pcard" data-act="choose" data-i="' + i + '" ' +
-      'style="--accent:' + (m.primary||'var(--ink-500)') + ';animation-delay:' + delay + 'ms">' +
+      'style="animation-delay:' + delay + 'ms">' +
     '<div class="pmain">' +
       '<div class="pname">' + esc(p.name) + '</div>' +
       '<div class="pmeta"><span class="posbadge" data-p="' + p.position + '">' + p.position + '</span>' +
         fitHintHTML(p) + '</div>' +
-      attrsHTML(p) +
+      ratingsHTML(p) +
     '</div>' +
-    '<div class="ovr">' + playerOVR(p) + '<small>OVR</small></div>' +
+    '<div class="ovr">' + playerOVR(p) + '</div>' +
   '</button>';
 }
 
@@ -4791,7 +4757,7 @@ function slotMiniHTML(slot){
 }
 
 function recentPicksHTML(){
-  return '<div class="sechead"><h2>Signed</h2><span class="rule"></span></div>' +
+  return '<div class="sechead"><h2>Signed</h2></div>' +
     '<div class="xi">' + GAME.picks.map(pk => {
       const slot = CONFIG.FORMATION.find(s => s.id === pk.slotId);
       return '<div class="xirow"><span class="xslot">' + slot.short + '</span>' +
@@ -4844,8 +4810,7 @@ function assignSheetHTML(){
         '<div class="smera">' + esc(p.club) + ' &middot; ' + esc(p.era) + ' &middot; natural ' + p.position + '</div></div>' +
       '</div>' +
       '<div class="slotpick">' + cells + '</div>' +
-      '<p class="note">Percentages are what this player is worth in that shirt, against what they are worth in their own. A goalkeeper outfield, or an outfielder in goal, is not a small tax.</p>' +
-      '<button class="btn btn--ghost" style="margin-top:12px" data-act="cancel">Back</button>' +
+      '<button class="btn btn--ghost" style="margin-top:4px" data-act="cancel">Back</button>' +
     '</div>';
 }
 
@@ -4867,10 +4832,10 @@ function viewResults(){
   /* ---- the margin: what the seven were worth vs what they took ---- */
   const delta = r.wins - rep.expWins;
   const marginLine = Math.abs(delta) < 1.2
-    ? 'You finished almost exactly where this squad deserved to.'
+    ? 'About what this squad deserved.'
     : delta > 0
-      ? 'You took ' + delta.toFixed(1) + ' more wins than this squad deserved.'
-      : 'You left ' + Math.abs(delta).toFixed(1) + ' wins on the pitch.';
+      ? delta.toFixed(1) + ' more wins than this squad deserved.'
+      : Math.abs(delta).toFixed(1) + ' wins left on the pitch.';
   const fpos = clamp(((r.form + CONFIG.MATCH.FORM_SWING) / (2 * CONFIG.MATCH.FORM_SWING)) * 100, 0, 100);
 
   /* ---- how the season broke ---- */
@@ -4883,12 +4848,8 @@ function viewResults(){
       '<div class="pbar">' + seg(per.w,'w') + seg(per.d,'d') + seg(per.l,'l') + '</div>' +
     '</div>').join('');
   const brokeLine = rep.worstPeriod.dropped === 0
-    ? 'You did not drop a single point all season.'
-    : 'Most of the damage was done in ' + rep.worstPeriod.blurb + ', where ' +
-      rep.worstPeriod.dropped + ' points went begging. ' +
-      (rep.bestPeriod.dropped === 0
-        ? 'You were flawless through ' + rep.bestPeriod.blurb + '.'
-        : rep.bestPeriod.name + ' was your strongest spell.');
+    ? 'Not a point dropped all season.'
+    : rep.worstPeriod.dropped + ' points lost in ' + rep.worstPeriod.blurb + '.';
 
   /* ---- the side ---- */
   const phaseRows = [
@@ -4906,15 +4867,16 @@ function viewResults(){
       '<div class="mtrack"><div class="mfill" data-w="' + clamp(val,0,100) + '"></div>' +
         (gate ? '<span class="mgate" style="left:' + gate.min + '%" title="Gate ' + gate.min + '"></span>' : '') +
       '</div>' +
-      (fail ? '<div class="mnote">Below the ' + gate.min + ' line &mdash; it told in the run&#8209;in</div>' : '') +
+      (fail ? '<div class="mnote">Below ' + gate.min + '</div>' : '') +
     '</div>';
   }).join('');
 
   /* ---- key men ---- */
   const signed = n => (n >= 0 ? '+' : '&minus;') + Math.abs(n).toFixed(0);
   const tile = (key, name, sub, num, cls) =>
-    '<div class="tile"><span class="tkey">' + key + '</span>' +
-      '<span class="tbody"><span class="tname">' + esc(name) + '</span>' +
+    '<div class="tile">' +
+      '<span class="tbody"><span class="tkey">' + key + '</span>' +
+        '<span class="tname">' + esc(name) + '</span>' +
         '<span class="tsub">' + sub + '</span></span>' +
       (num ? '<span class="tnum ' + (cls||'') + '">' + num + '</span>' : '') +
     '</div>';
@@ -4938,14 +4900,11 @@ function viewResults(){
 
   /* ---- what to fix ---- */
   const adviceHTML = rep.advice.length
-    ? rep.advice.map((ad, i) =>
-        '<div class="aitem"><div class="ahead"><span class="anum">' +
-          String(i+1).padStart(2,'0') + '</span><span>' + esc(ad.head) + '</span></div>' +
+    ? rep.advice.map(ad =>
+        '<div class="aitem"><div class="ahead">' + esc(ad.head) + '</div>' +
           '<p class="abody">' + esc(ad.body) + '</p></div>').join('')
-    : '<div class="aitem"><div class="ahead"><span class="anum">00</span>' +
-      '<span>Nothing to fix</span></div>' +
-      '<p class="abody">Every phase cleared its line, everyone played where they should, and the ' +
-      'seven fitted together. There was nothing left on the table.</p></div>';
+    : '<div class="aitem"><div class="ahead">Nothing to fix</div>' +
+      '<p class="abody">Every phase cleared its line and everyone played where they should.</p></div>';
 
   /* ---- the squad ---- */
   const xiRows = CONFIG.FORMATION.map(slot => {
@@ -4978,8 +4937,7 @@ function viewResults(){
       '<div class="ptsrow"><span>Points</span><b data-count="' + pts + '">0</b></div>' +
       (isBest ? '<div class="bestchip" style="margin-top:14px">New personal best</div>' : '') +
 
-      '<div class="sechead"><h2>The margin</h2><span class="rule"></span>' +
-        '<span class="label">' + esc(fort.label) + '</span></div>' +
+      '<div class="sechead"><h2>The margin</h2></div>' +
       '<div class="margin">' +
         '<div><span class="mlabel">Worth</span><span class="mbig">' + rep.expWins.toFixed(1) + '</span></div>' +
         '<div><span class="mlabel">Took</span><span class="mbig ' + (delta >= 0 ? 'over' : 'under') + '">' +
@@ -4991,17 +4949,11 @@ function viewResults(){
         '<div class="fends"><span>Cursed</span><span>Even</span><span>Charmed</span></div>' +
       '</div>' +
 
-      '<div class="sechead"><h2>How it broke</h2><span class="rule"></span>' +
-        '<span class="label">' + pts + ' of ' + (CONFIG.SEASON.MATCHES*3) + ' pts</span></div>' +
+      '<div class="sechead"><h2>How it broke</h2></div>' +
       '<div class="periods">' + periodHTML + '</div>' +
-      '<div class="pkey">' +
-        '<span><i style="background:var(--ultra)"></i>Won</span>' +
-        '<span><i style="background:var(--volt)"></i>Drawn</span>' +
-        '<span><i style="background:var(--flare)"></i>Lost</span>' +
-      '</div>' +
       '<p class="note" style="margin-top:10px">' + esc(brokeLine) + '</p>' +
 
-      '<div class="sechead"><h2>The side</h2><span class="rule"></span>' +
+      '<div class="sechead"><h2>The side</h2>' +
         '<span class="label">Rating ' + a.rating.toFixed(0) + '</span></div>' +
       '<div class="meters">' + phaseRows + '</div>' +
       '<p class="note" style="margin-top:12px">Chemistry <b style="color:var(--chalk-soft)">' +
@@ -5010,11 +4962,10 @@ function viewResults(){
         ' &middot; ' + a.eraCount + ' era' + (a.eraCount===1?'':'s') + '</p>' +
       '<div class="tiles" style="margin-top:14px">' + tilesHTML + '</div>' +
 
-      '<div class="sechead"><h2>What to fix</h2><span class="rule"></span></div>' +
+      '<div class="sechead"><h2>What to fix</h2></div>' +
       '<div class="advice">' + adviceHTML + '</div>' +
 
-      '<div class="sechead"><h2>Your ' + squadWord() + '</h2><span class="rule"></span>' +
-        '<span class="label">vs a replacement pick</span></div>' +
+      '<div class="sechead"><h2>Your ' + squadWord() + '</h2></div>' +
       '<div class="xi">' + xiRows + '</div>' +
       '<p class="note" style="margin-top:14px">' +
         (GAME.mode === 'daily' ? 'Daily draft &middot; ' + esc(GAME.seedKey) : 'Free play') +
