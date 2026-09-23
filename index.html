@@ -926,13 +926,21 @@ const CONFIG = {
                                   // that scarcity would just be frustrating,
                                   // so the difficulty lives in the season, not
                                   // in hiding players from you.
-    REPEAT_DECAY: 0.34,           // how much less likely a club is to come up
+    REPEAT_DECAY: 0.90,           // how much less likely a club is to come up
                                   // again per time it has already been drawn.
                                   // 1 would make repeats as common as anything
                                   // else and the draft would stop feeling like
                                   // a tour of the league; 0 would ban them and
-                                  // close off every same-club link. A third
-                                  // makes a return a real but uncommon chance.
+                                  // close off every same-club link.
+                                  //
+                                  // Set from measurement, not taste. It was
+                                  // 0.34 across 32 cells; at 56 cells that same
+                                  // value dropped the teammate-pair rate from
+                                  // 29% to 15% and quietly killed chemistry
+                                  // again. 0.90 holds it at 29% while the draft
+                                  // still tours 6.3 different clubs. Grow the
+                                  // club list again and this has to grow with
+                                  // it -- two tests will fail if it does not.
   },
 
   /* ---- Eras. Exactly three. ---- */
@@ -1014,11 +1022,11 @@ const CONFIG = {
   CURVE: {
     START: 54,              // matchday 1 opponent rating — there are no free
                             // wins in this division, only easier ones
-    END: 74,                // matchday 38 baseline before the gauntlet
+    END: 72.5,                // matchday 38 baseline before the gauntlet
     SHAPE: 1.25,            // >1 back-loads the difficulty
     GAUNTLET_FROM: 26,      // 0-indexed matchday where the run-in begins:
                             // the last twelve are the title run-in
-    GAUNTLET_PEAK: 12,      // extra rating added by the final match
+    GAUNTLET_PEAK: 10,      // extra rating added by the final match
     GAUNTLET_SHAPE: 1.50,
     WOBBLE: 2.6,            // deterministic per-fixture variation
   },
@@ -1259,6 +1267,18 @@ function P(name, position, attack, creativity, defense, physical, gk){
 
 /** Club identity — used for the crest, the reel and the share card. */
 const CLUB_META = {
+  'Leeds':          { code:'LEE', primary:'#FFCD00', secondary:'#1D428A', nick:'The Whites' },
+  'Burnley':        { code:'BUR', primary:'#6C1D45', secondary:'#99D6EA', nick:'The Clarets' },
+  'Brighton':       { code:'BHA', primary:'#0057B8', secondary:'#F4F6FA', nick:'The Seagulls' },
+  'Wolves':         { code:'WOL', primary:'#FDB913', secondary:'#231F20', nick:'Wolves' },
+  'Brentford':      { code:'BRE', primary:'#E30613', secondary:'#F4F6FA', nick:'The Bees' },
+  'Bournemouth':    { code:'BOU', primary:'#DA291C', secondary:'#000000', nick:'The Cherries' },
+  'Nott\'m Forest': { code:'NFO', primary:'#DD0000', secondary:'#F4F6FA', nick:'Forest' },
+  'Stoke':          { code:'STK', primary:'#E03A3E', secondary:'#F4F6FA', nick:'The Potters' },
+  'Southampton':    { code:'SOU', primary:'#D71920', secondary:'#F4F6FA', nick:'The Saints' },
+  'West Brom':      { code:'WBA', primary:'#122F67', secondary:'#F4F6FA', nick:'The Baggies' },
+  'Swansea':        { code:'SWA', primary:'#F4F6FA', secondary:'#121212', nick:'The Swans' },
+  'Crystal Palace': { code:'CRY', primary:'#1B458F', secondary:'#C4122E', nick:'The Eagles' },
   'Charlton':       { code:'CHA', primary:'#D4021D', secondary:'#F4F6FA', nick:'The Addicks' },
   'Portsmouth':     { code:'POR', primary:'#001489', secondary:'#F4F6FA', nick:'Pompey' },
   'Sunderland':     { code:'SUN', primary:'#EB172B', secondary:'#F4F6FA', nick:'The Black Cats' },
@@ -2150,6 +2170,28 @@ const CLUBS = {
     P('Andrew Johnson',            'FWD', 78,  68,  28,  90,   6),
     P('Luis Boa Morte',            'FWD', 74,  74,  34,  88,   6),
   ],
+  '2020s': [
+    P('Bernd Leno',                'GK',   5,  50,  36,  76,  84),
+    P('Alphonse Areola',           'GK',   5,  44,  32,  82,  80),
+    P('Marek Rodak',               'GK',   5,  40,  28,  80,  76),
+    P('Tosin Adarabioyo',          'DEF', 28,  54,  78,  84,   6),
+    P('Antonee Robinson',          'DEF', 36,  58,  76,  90,   6),
+    P('Calvin Bassey',             'DEF', 28,  50,  76,  86,   6),
+    P('Kenny Tete',                'DEF', 32,  56,  74,  84,   6),
+    P('Tim Ream',                  'DEF', 26,  56,  74,  72,   6),
+    P('Issa Diop',                 'DEF', 26,  44,  74,  84,   6),
+    P('Joao Palhinha',             'MID', 48,  70,  82,  86,   6),
+    P('Andreas Pereira',           'MID', 64,  82,  50,  76,   6),
+    P('Tom Cairney',               'MID', 56,  82,  54,  70,   6),
+    P('Sasa Lukic',                'MID', 48,  70,  70,  80,   6),
+    P('Harrison Reed',             'MID', 44,  66,  70,  80,   6),
+    P('Bobby Decordova-Reid',      'MID', 66,  72,  50,  82,   6),
+    P('Aleksandar Mitrovic',       'FWD', 82,  64,  32,  80,   6),
+    P('Raul Jimenez',              'FWD', 78,  74,  32,  78,   6),
+    P('Willian',                   'FWD', 72,  82,  32,  70,   6),
+    P('Rodrigo Muniz',             'FWD', 72,  62,  28,  82,   6),
+    P('Adama Traore',              'FWD', 70,  70,  30,  96,   6),
+  ],
 },
 
 /* --------------------------------------------------------------- CHARLTON -- */
@@ -2231,6 +2273,28 @@ const CLUBS = {
     P('Kenwyne Jones',             'FWD', 76,  64,  30,  88,   6),
     P('Michael Chopra',            'FWD', 70,  64,  26,  82,   6),
   ],
+  '2010s': [
+    P('Vito Mannone',              'GK',   5,  42,  30,  78,  78),
+    P('Simon Mignolet',            'GK',   5,  44,  32,  80,  80),
+    P('Costel Pantilimon',         'GK',   5,  38,  28,  84,  76),
+    P('John OShea',                'DEF', 28,  56,  78,  76,   6),
+    P('Wes Brown',                 'DEF', 26,  48,  76,  78,   6),
+    P('Younes Kaboul',             'DEF', 32,  46,  76,  84,   6),
+    P('Lamine Kone',               'DEF', 28,  42,  76,  86,   6),
+    P('Patrick van Aanholt',       'DEF', 40,  62,  70,  86,   6),
+    P('Carlos Cuellar',            'DEF', 26,  44,  74,  80,   6),
+    P('Jordan Henderson',          'MID', 58,  80,  70,  86,   6),
+    P('Stephane Sessegnon',        'MID', 72,  82,  46,  84,   6),
+    P('Adam Johnson',              'MID', 68,  80,  42,  80,   6),
+    P('Sebastian Larsson',         'MID', 62,  78,  56,  76,   6),
+    P('Lee Cattermole',            'MID', 42,  62,  76,  80,   6),
+    P('Jack Colback',              'MID', 48,  68,  68,  78,   6),
+    P('Jermain Defoe',             'FWD', 86,  70,  24,  84,   6),
+    P('Steven Fletcher',           'FWD', 76,  64,  30,  80,   6),
+    P('Fabio Borini',              'FWD', 72,  68,  32,  82,   6),
+    P('Connor Wickham',            'FWD', 70,  62,  30,  86,   6),
+    P('Jozy Altidore',             'FWD', 68,  60,  30,  86,   6),
+  ],
 },
 
 /* ------------------------------------------------------------- BIRMINGHAM -- */
@@ -2257,6 +2321,374 @@ const CLUBS = {
     P('Christophe Dugarry',        'FWD', 76,  84,  30,  70,   6),
     P('Clinton Morrison',          'FWD', 72,  66,  28,  82,   6),
     P('Cameron Jerome',            'FWD', 70,  60,  30,  88,   6),
+  ],
+},
+
+/* ------------------------------------------------------------------ STOKE -- */
+/* Premier League 2008-09 to 2017-18. FA Cup final 2011. */
+'Stoke': {
+  '2010s': [
+    P('Asmir Begovic',             'GK',   5,  46,  34,  84,  84),
+    P('Jack Butland',              'GK',   5,  44,  32,  82,  82),
+    P('Thomas Sorensen',           'GK',   5,  42,  30,  78,  78),
+    P('Ryan Shawcross',            'DEF', 30,  44,  80,  86,   6),
+    P('Robert Huth',               'DEF', 30,  44,  80,  88,   6),
+    P('Erik Pieters',              'DEF', 32,  56,  74,  82,   6),
+    P('Geoff Cameron',             'DEF', 30,  54,  74,  82,   6),
+    P('Bruno Martins Indi',        'DEF', 28,  50,  74,  82,   6),
+    P('Marc Wilson',               'DEF', 28,  50,  72,  78,   6),
+    P('Xherdan Shaqiri',           'MID', 76,  86,  42,  80,   6),
+    P('Bojan Krkic',               'MID', 74,  84,  36,  74,   6),
+    P('Steven Nzonzi',             'MID', 50,  72,  76,  86,   6),
+    P('Joe Allen',                 'MID', 56,  78,  66,  76,   6),
+    P('Charlie Adam',              'MID', 60,  78,  56,  66,   6),
+    P('Glenn Whelan',              'MID', 44,  64,  72,  76,   6),
+    P('Peter Crouch',              'FWD', 82,  76,  30,  74,   6),
+    P('Marko Arnautovic',          'FWD', 82,  80,  30,  86,   6),
+    P('Jonathan Walters',          'FWD', 74,  66,  38,  84,   6),
+    P('Mame Biram Diouf',          'FWD', 72,  60,  32,  88,   6),
+    P('Kenwyne Jones',             'FWD', 74,  62,  30,  88,   6),
+  ],
+},
+
+/* ------------------------------------------------------------ SOUTHAMPTON -- */
+/* Premier League 2000-01 to 2004-05, 2012-13 to 2022-23, and 2024-25. */
+'Southampton': {
+  '2010s': [
+    P('Fraser Forster',            'GK',   5,  44,  34,  86,  84),
+    P('Artur Boruc',               'GK',   5,  44,  32,  80,  80),
+    P('Alex McCarthy',             'GK',   5,  40,  30,  80,  76),
+    P('Virgil van Dijk',           'DEF', 40,  62,  88,  92,   6),
+    P('Toby Alderweireld',         'DEF', 32,  62,  84,  82,   6),
+    P('Jose Fonte',                'DEF', 30,  52,  78,  80,   6),
+    P('Nathaniel Clyne',           'DEF', 38,  58,  76,  88,   6),
+    P('Luke Shaw',                 'DEF', 40,  62,  74,  86,   6),
+    P('Ryan Bertrand',             'DEF', 38,  58,  74,  84,   6),
+    P('Adam Lallana',              'MID', 70,  86,  50,  78,   6),
+    P('Dusan Tadic',               'MID', 70,  86,  44,  72,   6),
+    P('Morgan Schneiderlin',       'MID', 50,  74,  78,  82,   6),
+    P('James Ward-Prowse',         'MID', 62,  84,  62,  76,   6),
+    P('Victor Wanyama',            'MID', 46,  62,  78,  90,   6),
+    P('Oriol Romeu',               'MID', 42,  66,  74,  80,   6),
+    P('Sadio Mane',                'FWD', 86,  80,  32,  94,   6),
+    P('Rickie Lambert',            'FWD', 78,  74,  30,  72,   6),
+    P('Graziano Pelle',            'FWD', 76,  66,  30,  78,   6),
+    P('Danny Ings',                'FWD', 80,  70,  30,  82,   6),
+    P('Charlie Austin',            'FWD', 76,  62,  28,  76,   6),
+  ],
+  '2020s': [
+    P('Alex McCarthy',             'GK',   5,  40,  30,  80,  76),
+    P('Gavin Bazunu',              'GK',   5,  42,  28,  80,  76),
+    P('Aaron Ramsdale',            'GK',   5,  48,  30,  80,  78),
+    P('Jan Bednarek',              'DEF', 28,  48,  76,  80,   6),
+    P('Kyle Walker-Peters',        'DEF', 36,  60,  74,  86,   6),
+    P('Mohammed Salisu',           'DEF', 26,  46,  76,  84,   6),
+    P('Armel Bella-Kotchap',       'DEF', 26,  44,  74,  84,   6),
+    P('Romain Perraud',            'DEF', 32,  54,  70,  82,   6),
+    P('Jack Stephens',             'DEF', 26,  46,  72,  78,   6),
+    P('James Ward-Prowse',         'MID', 64,  86,  62,  76,   6),
+    P('Romeo Lavia',               'MID', 46,  74,  72,  80,   6),
+    P('Stuart Armstrong',          'MID', 62,  76,  56,  78,   6),
+    P('Mohamed Elyounoussi',       'MID', 64,  74,  46,  80,   6),
+    P('Oriol Romeu',               'MID', 42,  66,  74,  78,   6),
+    P('Moussa Djenepo',            'MID', 62,  68,  44,  88,   6),
+    P('Danny Ings',                'FWD', 80,  70,  30,  80,   6),
+    P('Che Adams',                 'FWD', 74,  70,  30,  84,   6),
+    P('Adam Armstrong',            'FWD', 72,  66,  28,  84,   6),
+    P('Cameron Archer',            'FWD', 68,  62,  28,  84,   6),
+    P('Sekou Mara',                'FWD', 66,  60,  28,  84,   6),
+  ],
+},
+
+/* --------------------------------------------------------------- WEST BROM -- */
+/* Premier League 2010-11 to 2017-18, eight straight seasons. */
+'West Brom': {
+  '2010s': [
+    P('Ben Foster',                'GK',   5,  48,  34,  82,  84),
+    P('Boaz Myhill',               'GK',   5,  40,  30,  76,  74),
+    P('Scott Carson',              'GK',   5,  40,  30,  78,  76),
+    P('Jonas Olsson',              'DEF', 28,  46,  78,  82,   6),
+    P('Gareth McAuley',            'DEF', 32,  44,  78,  80,   6),
+    P('Craig Dawson',              'DEF', 30,  48,  76,  82,   6),
+    P('Kieran Gibbs',              'DEF', 36,  60,  72,  84,   6),
+    P('Chris Brunt',               'DEF', 44,  72,  68,  76,   6),
+    P('Billy Jones',               'DEF', 26,  44,  70,  78,   6),
+    P('James Morrison',            'MID', 60,  78,  60,  78,   6),
+    P('Nacer Chadli',              'MID', 70,  78,  46,  80,   6),
+    P('Youssouf Mulumbu',          'MID', 50,  72,  70,  82,   6),
+    P('Matt Phillips',             'MID', 66,  76,  46,  84,   6),
+    P('Jake Livermore',            'MID', 48,  66,  70,  80,   6),
+    P('Claudio Yacob',             'MID', 40,  60,  74,  78,   6),
+    P('Romelu Lukaku',             'FWD', 84,  68,  30,  90,   6),
+    P('Salomon Rondon',            'FWD', 76,  64,  32,  86,   6),
+    P('Peter Odemwingie',          'FWD', 76,  70,  30,  84,   6),
+    P('Shane Long',                'FWD', 72,  64,  32,  88,   6),
+    P('Saido Berahino',            'FWD', 74,  66,  26,  84,   6),
+  ],
+},
+
+/* ----------------------------------------------------------------- SWANSEA -- */
+/* Premier League 2011-12 to 2017-18. League Cup winners 2013. */
+'Swansea': {
+  '2010s': [
+    P('Michel Vorm',               'GK',   5,  46,  32,  78,  82),
+    P('Lukasz Fabianski',          'GK',   5,  46,  32,  80,  82),
+    P('Gerhard Tremmel',           'GK',   5,  38,  28,  76,  72),
+    P('Ashley Williams',           'DEF', 30,  54,  80,  82,   6),
+    P('Federico Fernandez',        'DEF', 28,  52,  76,  80,   6),
+    P('Angel Rangel',              'DEF', 34,  60,  72,  80,   6),
+    P('Neil Taylor',               'DEF', 30,  54,  72,  82,   6),
+    P('Alfie Mawson',              'DEF', 30,  48,  74,  82,   6),
+    P('Chico Flores',              'DEF', 28,  50,  72,  78,   6),
+    P('Gylfi Sigurdsson',          'MID', 76,  88,  46,  74,   6),
+    P('Leon Britton',              'MID', 44,  80,  64,  66,   6),
+    P('Ki Sung-yueng',             'MID', 56,  78,  66,  78,   6),
+    P('Jonjo Shelvey',             'MID', 62,  82,  58,  74,   6),
+    P('Wayne Routledge',           'MID', 66,  74,  42,  88,   6),
+    P('Jack Cork',                 'MID', 44,  66,  72,  78,   6),
+    P('Wilfried Bony',             'FWD', 82,  66,  32,  86,   6),
+    P('Michu',                     'FWD', 80,  76,  34,  70,   6),
+    P('Fernando Llorente',         'FWD', 78,  68,  32,  76,   6),
+    P('Bafetimbi Gomis',           'FWD', 74,  62,  30,  88,   6),
+    P('Danny Graham',              'FWD', 70,  62,  30,  78,   6),
+  ],
+},
+
+/* ---------------------------------------------------------- CRYSTAL PALACE -- */
+/* Premier League 2013-14 onward, after single seasons in 2004-05 and earlier. */
+'Crystal Palace': {
+  '2010s': [
+    P('Julian Speroni',            'GK',   5,  42,  30,  76,  78),
+    P('Wayne Hennessey',           'GK',   5,  40,  30,  80,  78),
+    P('Vicente Guaita',            'GK',   5,  42,  30,  78,  80),
+    P('Scott Dann',                'DEF', 32,  48,  78,  80,   6),
+    P('Mamadou Sakho',             'DEF', 28,  50,  80,  86,   6),
+    P('Aaron Wan-Bissaka',         'DEF', 34,  56,  80,  88,   6),
+    P('Patrick van Aanholt',       'DEF', 40,  62,  70,  86,   6),
+    P('Joel Ward',                 'DEF', 28,  50,  74,  80,   6),
+    P('Martin Kelly',              'DEF', 26,  46,  72,  78,   6),
+    P('Yohan Cabaye',              'MID', 64,  84,  64,  74,   6),
+    P('Luka Milivojevic',          'MID', 56,  76,  72,  76,   6),
+    P('James McArthur',            'MID', 54,  72,  68,  82,   6),
+    P('Andros Townsend',           'MID', 70,  76,  46,  86,   6),
+    P('Jason Puncheon',            'MID', 64,  74,  50,  78,   6),
+    P('Mile Jedinak',              'MID', 44,  58,  74,  80,   6),
+    P('Wilfried Zaha',             'FWD', 82,  82,  32,  92,   6),
+    P('Christian Benteke',         'FWD', 78,  64,  32,  86,   6),
+    P('Yannick Bolasie',           'FWD', 74,  76,  30,  90,   6),
+    P('Glenn Murray',              'FWD', 74,  60,  30,  74,   6),
+    P('Jordan Ayew',               'FWD', 72,  68,  32,  84,   6),
+  ],
+  '2020s': [
+    P('Dean Henderson',            'GK',   5,  48,  32,  82,  82),
+    P('Sam Johnstone',             'GK',   5,  44,  30,  80,  80),
+    P('Jack Butland',              'GK',   5,  44,  32,  82,  80),
+    P('Marc Guehi',                'DEF', 30,  58,  82,  84,   6),
+    P('Joachim Andersen',          'DEF', 30,  62,  78,  80,   6),
+    P('Daniel Munoz',              'DEF', 36,  56,  76,  88,   6),
+    P('Tyrick Mitchell',           'DEF', 32,  54,  72,  86,   6),
+    P('Chris Richards',            'DEF', 26,  48,  74,  84,   6),
+    P('Nathaniel Clyne',           'DEF', 32,  54,  72,  80,   6),
+    P('Eberechi Eze',              'MID', 78,  86,  40,  84,   6),
+    P('Michael Olise',             'MID', 76,  88,  38,  82,   6),
+    P('Adam Wharton',              'MID', 52,  84,  66,  74,   6),
+    P('Cheick Doucoure',           'MID', 44,  68,  76,  84,   6),
+    P('Will Hughes',               'MID', 50,  72,  64,  74,   6),
+    P('Jefferson Lerma',           'MID', 44,  62,  74,  84,   6),
+    P('Jean-Philippe Mateta',      'FWD', 80,  66,  32,  84,   6),
+    P('Ismaila Sarr',              'FWD', 76,  72,  30,  92,   6),
+    P('Odsonne Edouard',           'FWD', 72,  70,  28,  80,   6),
+    P('Eddie Nketiah',             'FWD', 72,  64,  28,  84,   6),
+    P('Matheus Franca',            'FWD', 66,  70,  28,  80,   6),
+  ],
+},
+
+/* --------------------------------------------------------------- BRIGHTON -- */
+/* Premier League from 2017-18, an ever-present through the 2020s. */
+'Brighton': {
+  '2020s': [
+    P('Robert Sanchez',            'GK',   5,  44,  32,  84,  80),
+    P('Jason Steele',              'GK',   5,  48,  30,  76,  76),
+    P('Bart Verbruggen',           'GK',   5,  46,  30,  80,  78),
+    P('Lewis Dunk',                'DEF', 34,  62,  82,  82,   6),
+    P('Pervis Estupinan',          'DEF', 40,  62,  74,  88,   6),
+    P('Marc Cucurella',            'DEF', 38,  64,  72,  84,   6),
+    P('Joel Veltman',              'DEF', 28,  54,  76,  80,   6),
+    P('Adam Webster',              'DEF', 28,  54,  76,  78,   6),
+    P('Tariq Lamptey',             'DEF', 38,  58,  68,  92,   6),
+    P('Alexis Mac Allister',       'MID', 70,  86,  62,  78,   6),
+    P('Moises Caicedo',            'MID', 54,  78,  80,  88,   6),
+    P('Kaoru Mitoma',              'MID', 76,  84,  38,  88,   6),
+    P('Pascal Gross',              'MID', 62,  86,  56,  68,   6),
+    P('Solly March',               'MID', 66,  78,  48,  84,   6),
+    P('Yves Bissouma',             'MID', 52,  74,  76,  86,   6),
+    P('Leandro Trossard',          'FWD', 80,  82,  30,  80,   6),
+    P('Danny Welbeck',             'FWD', 76,  72,  32,  82,   6),
+    P('Joao Pedro',                'FWD', 78,  76,  30,  80,   6),
+    P('Evan Ferguson',             'FWD', 74,  64,  28,  82,   6),
+    P('Neal Maupay',               'FWD', 72,  66,  28,  80,   6),
+  ],
+},
+
+/* ----------------------------------------------------------------- WOLVES -- */
+/* Premier League from 2018-19, after single seasons in 2003-04 and 2009-11. */
+'Wolves': {
+  '2020s': [
+    P('Jose Sa',                   'GK',   5,  44,  32,  82,  82),
+    P('Rui Patricio',              'GK',   5,  44,  32,  80,  82),
+    P('Daniel Bentley',            'GK',   5,  38,  28,  78,  74),
+    P('Max Kilman',                'DEF', 28,  54,  78,  82,   6),
+    P('Conor Coady',               'DEF', 28,  58,  76,  74,   6),
+    P('Romain Saiss',              'DEF', 32,  50,  76,  80,   6),
+    P('Nelson Semedo',             'DEF', 36,  56,  72,  88,   6),
+    P('Rayan Ait-Nouri',           'DEF', 40,  62,  70,  86,   6),
+    P('Toti Gomes',                'DEF', 26,  46,  72,  80,   6),
+    P('Ruben Neves',               'MID', 62,  86,  68,  76,   6),
+    P('Pedro Neto',                'MID', 74,  82,  36,  90,   6),
+    P('Joao Moutinho',             'MID', 52,  86,  62,  66,   6),
+    P('Matheus Nunes',             'MID', 62,  78,  62,  86,   6),
+    P('Daniel Podence',            'MID', 70,  78,  34,  82,   6),
+    P('Mario Lemina',              'MID', 50,  68,  72,  84,   6),
+    P('Raul Jimenez',              'FWD', 80,  74,  32,  80,   6),
+    P('Matheus Cunha',             'FWD', 80,  80,  30,  84,   6),
+    P('Hwang Hee-chan',            'FWD', 76,  68,  32,  88,   6),
+    P('Adama Traore',              'FWD', 70,  70,  30,  96,   6),
+    P('Fabio Silva',               'FWD', 66,  62,  28,  80,   6),
+  ],
+},
+
+/* --------------------------------------------------------------- BRENTFORD -- */
+/* Premier League from 2021-22. */
+'Brentford': {
+  '2020s': [
+    P('David Raya',                'GK',   5,  56,  34,  80,  84),
+    P('Mark Flekken',              'GK',   5,  50,  30,  80,  78),
+    P('Thomas Strakosha',          'GK',   5,  40,  28,  78,  74),
+    P('Ethan Pinnock',             'DEF', 28,  46,  78,  84,   6),
+    P('Nathan Collins',            'DEF', 30,  48,  76,  86,   6),
+    P('Ben Mee',                   'DEF', 28,  48,  76,  76,   6),
+    P('Kristoffer Ajer',           'DEF', 28,  50,  74,  86,   6),
+    P('Rico Henry',                'DEF', 34,  56,  72,  88,   6),
+    P('Aaron Hickey',              'DEF', 34,  56,  70,  84,   6),
+    P('Christian Norgaard',        'MID', 50,  74,  76,  82,   6),
+    P('Mathias Jensen',            'MID', 58,  80,  58,  74,   6),
+    P('Mikkel Damsgaard',          'MID', 64,  82,  46,  76,   6),
+    P('Vitaly Janelt',             'MID', 52,  70,  70,  82,   6),
+    P('Josh Dasilva',              'MID', 58,  72,  58,  80,   6),
+    P('Frank Onyeka',              'MID', 46,  62,  70,  84,   6),
+    P('Ivan Toney',                'FWD', 82,  74,  32,  82,   6),
+    P('Bryan Mbeumo',              'FWD', 80,  74,  32,  88,   6),
+    P('Yoane Wissa',               'FWD', 76,  68,  30,  86,   6),
+    P('Kevin Schade',              'FWD', 70,  62,  30,  90,   6),
+    P('Sergi Canos',               'FWD', 66,  70,  32,  84,   6),
+  ],
+},
+
+/* ------------------------------------------------------------ BOURNEMOUTH -- */
+/* Premier League 2015-16 to 2019-20 and from 2022-23. */
+'Bournemouth': {
+  '2020s': [
+    P('Neto',                      'GK',   5,  44,  30,  78,  78),
+    P('Mark Travers',              'GK',   5,  40,  28,  78,  74),
+    P('Kepa Arrizabalaga',         'GK',   5,  48,  32,  80,  80),
+    P('Marcos Senesi',             'DEF', 28,  54,  78,  82,   6),
+    P('Illia Zabarnyi',            'DEF', 28,  50,  78,  84,   6),
+    P('Milos Kerkez',              'DEF', 40,  62,  70,  90,   6),
+    P('Lloyd Kelly',               'DEF', 26,  48,  74,  82,   6),
+    P('Adam Smith',                'DEF', 30,  54,  72,  80,   6),
+    P('Chris Mepham',              'DEF', 24,  44,  72,  78,   6),
+    P('Ryan Christie',             'MID', 62,  76,  62,  82,   6),
+    P('Philip Billing',            'MID', 60,  70,  62,  86,   6),
+    P('Lewis Cook',                'MID', 48,  76,  66,  76,   6),
+    P('Marcus Tavernier',          'MID', 64,  74,  52,  84,   6),
+    P('Alex Scott',                'MID', 54,  74,  58,  80,   6),
+    P('Jefferson Lerma',           'MID', 44,  62,  74,  84,   6),
+    P('Dominic Solanke',           'FWD', 80,  70,  32,  84,   6),
+    P('Justin Kluivert',           'FWD', 76,  76,  28,  84,   6),
+    P('Antoine Semenyo',           'FWD', 74,  68,  30,  88,   6),
+    P('Dango Ouattara',            'FWD', 70,  66,  30,  88,   6),
+    P('Kieffer Moore',             'FWD', 70,  56,  32,  76,   6),
+  ],
+},
+
+/* ------------------------------------------------------- NOTTINGHAM FOREST -- */
+/* Premier League from 2022-23. */
+'Nott\'m Forest': {
+  '2020s': [
+    P('Matz Sels',                 'GK',   5,  44,  30,  80,  82),
+    P('Dean Henderson',            'GK',   5,  48,  32,  82,  82),
+    P('Matt Turner',               'GK',   5,  40,  28,  78,  76),
+    P('Murillo',                   'DEF', 30,  54,  80,  86,   6),
+    P('Nikola Milenkovic',         'DEF', 32,  48,  80,  86,   6),
+    P('Ola Aina',                  'DEF', 34,  56,  74,  88,   6),
+    P('Neco Williams',             'DEF', 34,  56,  70,  84,   6),
+    P('Willy Boly',                'DEF', 28,  44,  74,  84,   6),
+    P('Joe Worrall',               'DEF', 24,  44,  72,  80,   6),
+    P('Morgan Gibbs-White',        'MID', 74,  84,  52,  82,   6),
+    P('Elliot Anderson',           'MID', 60,  78,  64,  82,   6),
+    P('Nicolas Dominguez',         'MID', 52,  72,  70,  80,   6),
+    P('Ryan Yates',                'MID', 46,  62,  72,  82,   6),
+    P('Orel Mangala',              'MID', 50,  70,  68,  82,   6),
+    P('Danilo',                    'MID', 54,  68,  64,  82,   6),
+    P('Chris Wood',                'FWD', 80,  58,  32,  76,   6),
+    P('Anthony Elanga',            'FWD', 74,  72,  30,  92,   6),
+    P('Callum Hudson-Odoi',        'FWD', 74,  76,  30,  84,   6),
+    P('Taiwo Awoniyi',             'FWD', 72,  58,  30,  86,   6),
+    P('Brennan Johnson',           'FWD', 74,  70,  30,  88,   6),
+  ],
+},
+
+/* ------------------------------------------------------------------ LEEDS -- */
+/* Premier League 2000-01 to 2003-04, then 2020-21 to 2022-23. */
+'Leeds': {
+  '2020s': [
+    P('Illan Meslier',             'GK',   5,  44,  30,  82,  78),
+    P('Kiko Casilla',              'GK',   5,  40,  28,  78,  74),
+    P('Joel Robles',               'GK',   5,  38,  28,  78,  72),
+    P('Robin Koch',                'DEF', 28,  52,  76,  84,   6),
+    P('Pascal Struijk',            'DEF', 28,  50,  74,  82,   6),
+    P('Diego Llorente',            'DEF', 28,  52,  74,  80,   6),
+    P('Luke Ayling',               'DEF', 32,  56,  72,  80,   6),
+    P('Liam Cooper',               'DEF', 26,  44,  74,  78,   6),
+    P('Junior Firpo',              'DEF', 34,  56,  68,  82,   6),
+    P('Kalvin Phillips',           'MID', 50,  80,  76,  80,   6),
+    P('Jack Harrison',             'MID', 68,  78,  46,  84,   6),
+    P('Mateusz Klich',             'MID', 58,  78,  58,  78,   6),
+    P('Tyler Adams',               'MID', 44,  68,  76,  86,   6),
+    P('Brenden Aaronson',          'MID', 60,  74,  56,  84,   6),
+    P('Marc Roca',                 'MID', 46,  74,  66,  74,   6),
+    P('Raphinha',                  'FWD', 80,  84,  30,  86,   6),
+    P('Patrick Bamford',           'FWD', 78,  68,  30,  82,   6),
+    P('Rodrigo',                   'FWD', 76,  76,  30,  78,   6),
+    P('Daniel James',              'FWD', 70,  68,  30,  94,   6),
+    P('Wilfried Gnonto',           'FWD', 70,  72,  28,  88,   6),
+  ],
+},
+
+/* ---------------------------------------------------------------- BURNLEY -- */
+/* Premier League 2014-15, 2016-17 to 2021-22, and 2023-24. */
+'Burnley': {
+  '2020s': [
+    P('Nick Pope',                 'GK',   5,  44,  32,  84,  84),
+    P('James Trafford',            'GK',   5,  44,  30,  82,  78),
+    P('Aro Muric',                 'GK',   5,  42,  28,  80,  76),
+    P('James Tarkowski',           'DEF', 30,  46,  80,  82,   6),
+    P('Ben Mee',                   'DEF', 28,  48,  76,  76,   6),
+    P('Charlie Taylor',            'DEF', 28,  50,  72,  80,   6),
+    P('Dara OShea',                'DEF', 26,  44,  72,  80,   6),
+    P('Matthew Lowton',            'DEF', 28,  50,  70,  78,   6),
+    P('Vitinho',                   'DEF', 30,  50,  68,  82,   6),
+    P('Dwight McNeil',             'MID', 66,  80,  46,  82,   6),
+    P('Josh Brownhill',            'MID', 56,  72,  66,  80,   6),
+    P('Sander Berge',              'MID', 52,  72,  70,  84,   6),
+    P('Ashley Westwood',           'MID', 46,  76,  64,  70,   6),
+    P('Jack Cork',                 'MID', 44,  66,  72,  76,   6),
+    P('Johann Berg Gudmundsson',   'MID', 62,  76,  48,  78,   6),
+    P('Chris Wood',                'FWD', 80,  58,  32,  76,   6),
+    P('Wout Weghorst',             'FWD', 72,  64,  32,  80,   6),
+    P('Maxwel Cornet',             'FWD', 72,  70,  30,  86,   6),
+    P('Jay Rodriguez',             'FWD', 70,  64,  30,  76,   6),
+    P('Lyle Foster',               'FWD', 68,  60,  28,  84,   6),
   ],
 },
 };
