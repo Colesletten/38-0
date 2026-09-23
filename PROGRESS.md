@@ -274,7 +274,59 @@ left in place — a setting nothing can change is the same dead constant the
 club-chemistry bonus had been, and this file exists partly to stop that
 happening twice. Traits are now simply part of the model.
 
-### 8. Telling the two modes apart
+### 8. Twenty clubs added, every squad cut to 20
+
+Two changes at once: every club-and-era roster became a curated 20, and the
+league grew from 11 clubs to 31.
+
+**The rule.** A club is in if it spent more than half of any one era in the
+Premier League -- 6+ seasons of the 2000s or 2010s, 4+ of the six completed
+2020s seasons. Worth noting the original framing was "more than half of *each*
+era", which none of the clubs that prompted it actually meet: Brighton never
+played a 2000s season, Brentford has only the 2020s, Leeds missed the whole of
+the 2010s. Leicester's empty 2000s was already the precedent for partial
+coverage.
+
+Added: Blackburn, Bolton, Middlesbrough, Fulham, Charlton, Portsmouth,
+Sunderland, Birmingham (2000s); Stoke, Southampton, West Brom, Swansea,
+Crystal Palace, Sunderland (2010s); Brighton, Wolves, Brentford, Bournemouth,
+Nottingham Forest, Leeds, Burnley, Fulham, Crystal Palace, Southampton (2020s).
+56 cells: 18 / 17 / 21 by era, which fixes the 2000s being the thinnest decade.
+
+**The 20-man quota** is 3 goalkeepers and 5 in each outfield group, with the
+remaining places to the best of the rest. The spare places are awarded on how
+far a player stands above the median *for his own position*: ranked on raw
+rating alone, a forward took every spare place, because the phase weights make
+attackers score higher across the board. Every cell came out GK3/DEF5/MID5/FWD7
+and the pool would have been starved of defenders.
+
+1,651 players became 1,120. The cost is real -- Sheringham, Crespo,
+Shevchenko, Dzeko, Torres, Kanu, Lacazette and Nunez are among those a 20-man
+squad cannot hold.
+
+**Two constants moved, both measured.** `REPEAT_DECAY` 0.34 -> 0.90: the old
+value was tuned across 32 cells, and at 56 it dropped the teammate-pair rate
+from 29% to 15%. Two tests caught it mid-tranche, which is the only reason
+chemistry did not die the same quiet death twice. `CURVE.END` 74 -> 72.5 and
+`GAUNTLET_PEAK` 12 -> 10: the weaker clubs took 38-0 from 2.9% down to 1.5% on
+their own. `CURVE.START`, the dial this file documents as the reversal lever,
+turned out to be the wrong one -- it governs early matches that were never the
+binding constraint. The run-in gauntlet was.
+
+Final, over 6,000 drafted seasons: p10 20, median 32, p90 37, 38-0 at 2.8%. A
+teammate pair appears in 31% of drafts, up from 25%.
+
+The p10 falling from 23 to 20 is the point rather than a regression. Charlton
+and Birmingham sit at 75 for their best seven where Liverpool sit at 90, so a
+bad draw is now genuinely bad and the two skips finally have something to do.
+
+**Where to check the data.** The 2000s and 2010s tenure counts are settled
+history. The 2020s counts for clubs on the four-season line -- Leeds, Burnley,
+Bournemouth, Forest, Southampton, Leicester -- depend on promotions and
+relegations close to the edge of what is reliably known here, and are the rows
+most worth verifying.
+
+### 9. Telling the two modes apart
 
 Reported as "I keep getting Aston Villa and West Ham, it's the same sequence
 every time". It was not a randomness bug — free play's seeding measured clean

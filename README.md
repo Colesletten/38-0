@@ -172,6 +172,18 @@ There is no bonus for fielding one player from each era. Seven picks across
 three eras land there by default, and paying out for the default is a rebate,
 not a reward.
 
+## The league
+
+31 clubs across three eras, 56 club-and-era cells, each a squad of exactly 20:
+three goalkeepers, at least five in each outfield group, the rest to the best
+available. A club earns a place by spending more than half of any one era in
+the Premier League, so Blackburn and Bolton bring the 2000s, Swansea and Stoke
+the 2010s, Brentford and Brighton the 2020s.
+
+The clubs are deliberately not all giants. Charlton and Birmingham field a best
+seven around 75 where Liverpool field 90, so the reels can deal a genuinely
+poor hand -- which is what gives the two skips something to protect you from.
+
 ## Squad traits
 
 Four phase ratings say how good each line is. They do not say what kind of side
