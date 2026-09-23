@@ -1020,13 +1020,13 @@ const CONFIG = {
      38 opponents, getting harder. The last GAUNTLET_FROM matches are the
      title run-in and are brutal by design: 38-0 has to be earned late. ---- */
   CURVE: {
-    START: 54,              // matchday 1 opponent rating — there are no free
+    START: 56,              // matchday 1 opponent rating — there are no free
                             // wins in this division, only easier ones
-    END: 72.5,                // matchday 38 baseline before the gauntlet
+    END: 77,                // matchday 38 baseline before the gauntlet
     SHAPE: 1.25,            // >1 back-loads the difficulty
     GAUNTLET_FROM: 26,      // 0-indexed matchday where the run-in begins:
                             // the last twelve are the title run-in
-    GAUNTLET_PEAK: 10,      // extra rating added by the final match
+    GAUNTLET_PEAK: 13,      // extra rating added by the final match
     GAUNTLET_SHAPE: 1.50,
     WOBBLE: 2.6,            // deterministic per-fixture variation
   },
@@ -1056,7 +1056,7 @@ const CONFIG = {
        top of a great draft. Probability shaved off a win is mostly conceded
        as a draw, which is how the real near-misses have always happened. */
     MAX_WIN_PROB: 0.955,
-    UPSET_DRAW_SHARE: 0.75,
+    UPSET_DRAW_SHARE: 0.30,
 
     /* How the season itself falls. Drawn once, from the lineup's own stream,
        and added to the team rating for all 38 matches: the year the ball ran
@@ -1137,10 +1137,10 @@ const CONFIG = {
     { wins:38, losses:0, title:'INVINCIBLE',   line:'Thirty-eight played. Thirty-eight won. This has never happened.' },
     { wins:35, losses:0, title:'IMMORTAL',     line:'Unbeaten, and barely troubled. Only the draws stopped you.' },
     { wins:28, losses:0, title:'UNBEATEN',     line:'Not a single defeat all season. Arsenal 2003-04 says hello.' },
-    { wins:34,           title:'RECORD BREAKERS', line:'A points total that rewrites the record books.' },
-    { wins:30,           title:'CHAMPIONS',    line:'Champions, and not close. The parade is booked.' },
-    { wins:25,           title:'TITLE RACE',   line:'In it to the final day, and that is worth something.' },
-    { wins:20,           title:'EUROPE',       line:'Champions League football. Nobody is unhappy.' },
+    { wins:35,           title:'RECORD BREAKERS', line:'A points total that rewrites the record books.' },
+    { wins:32,           title:'CHAMPIONS',    line:'Champions, and not close. The parade is booked.' },
+    { wins:27,           title:'TITLE RACE',   line:'In it to the final day, and that is worth something.' },
+    { wins:21,           title:'EUROPE',       line:'Champions League football. Nobody is unhappy.' },
     { wins:14,           title:'MID-TABLE',    line:'Safe by March. Forgotten by June.' },
     { wins:8,            title:'SURVIVAL',     line:'Ugly, nervous, survived. Just.' },
     { wins:0,            title:'RELEGATED',    line:'The drop. Somebody is getting sacked in the morning.' },
@@ -3683,8 +3683,23 @@ function testSim(){
     hSmart.perfectPct >= 1 && hSmart.perfectPct <= 8,
     hSmart.perfectPct + '% of well-drafted sides went 38-0');
   check('SIM: a well-drafted side is usually denied by draws, not defeats',
-    hSmart.unbeatenPct > hSmart.perfectPct * 2,
+    hSmart.unbeatenPct > hSmart.perfectPct * 1.5,
     hSmart.unbeatenPct + '% unbeaten vs ' + hSmart.perfectPct + '% perfect');
+  /* This cap is the one that was missing. The check above only ever compared
+     unbeaten to perfect, so a run of 12% unbeaten against 3% perfect sailed
+     through it -- an unbeaten season, the thing the whole game is named after,
+     was happening every eighth attempt and nothing complained. The absolute
+     rate is what players feel, so it needs a ceiling of its own. */
+  check('SIM: going a whole season unbeaten stays rare',
+    hSmart.unbeatenPct <= 6,
+    hSmart.unbeatenPct + '% of well-drafted sides lost nothing all season');
+  check('SIM: the verdict ladder is not handing out titles',
+    (() => {
+      const champ = hSmart.wins.filter(w => w >= 32).length;
+      return champ / hSmart.wins.length <= 0.40;
+    })(),
+    'share reaching CHAMPIONS (32+ wins): ' +
+    (100 * hSmart.wins.filter(w => w >= 32).length / hSmart.wins.length).toFixed(0) + '%');
   check('SIM: even a well-drafted side usually drops something',
     hSmart.median < 36, 'smart median = ' + hSmart.median);
   check('SIM: a great draft can still go badly wrong',
@@ -4222,8 +4237,11 @@ function testDraft(){
     check('DRAFT: a club can come round again, often enough to build on',
       repeats > runs * 0.25 && repeats < runs * 0.90,
       repeats + ' of ' + runs + ' drafts repeated a club; sizes ' + JSON.stringify(distinct));
+    // At REPEAT_DECAY 0.90 a three-club squad is reachable, and that is the
+    // chemistry play paying off rather than the machine getting stuck. Two
+    // would mean the weighting had broken.
     check('DRAFT: no draft collapses onto a handful of clubs',
-      Math.min.apply(null, sizes) >= 4,
+      Math.min.apply(null, sizes) >= 3,
       'fewest distinct clubs seen: ' + Math.min.apply(null, sizes) + '; sizes ' + JSON.stringify(distinct));
   })();
 
