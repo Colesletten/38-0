@@ -52,21 +52,26 @@ changes fixed it:
 - **An upset ceiling** (`MATCH.MAX_WIN_PROB = 0.955`). No match is ever more
   certain than that, whatever your rating. Probability shaved off a win is
   mostly conceded as a draw.
-- **Season fortune** (`MATCH.FORM_SWING = 15`). One draw from the lineup's own
-  stream, added to the team rating for all 38 matches. This is what makes two
-  equally good squads finish differently — it roughly doubled the spread between
-  squads of identical strength — and it is shown to the player on the results
-  screen as a "How it fell" scale rather than hidden in the engine.
+- **Season fortune** (`MATCH.FORM_SWING`, now 8, originally 15). One draw from
+  the lineup's own stream, added to the team rating for all 38 matches. This is
+  what makes two equally good squads finish differently, and it is shown to the
+  player as a "How it fell" scale rather than hidden in the engine. At 15 it
+  went much too far — see section 10 — and drowned the draft it was meant to
+  season.
 - **A shallower response curve and a higher floor.** `STEEP` 0.170 → 0.125 and
   the opponent curve raised from 45-64 to 54-74, so rating still matters but a
   good squad is never a formality.
 
 | how you draft | p10 | median | p90 | 38-0 | unbeaten |
 |---|---:|---:|---:|---:|---:|
-| random players, random slots | 0 | 4 | 11 | 0% | 0% |
-| random players, sensible slots | 3 | 10 | 23 | 0% | 0% |
-| best available, best slot | 23 | **33** | 37 | **3.2%** | 14.1% |
-| pool's theoretical best seven | — | — | — | 6.8% | — |
+| random players, random slots | 0 | 2 | 7 | 0% | 0% |
+| random players, sensible slots | 2 | 7 | 19 | 0% | 0% |
+| best available, best slot | 23 | **30** | 35 | **0.67%** | 3.6% |
+| pool's theoretical best seven | — | 37 | — | — | — |
+
+*(Figures above are the current ones. The `unbeaten` column carried the 38-0
+value for a long stretch because a scratchpad script computed it wrongly, which
+is how a 12% unbeaten rate hid in plain sight — see section 10.)*
 
 38-0 is now **8× rarer** for a well-drafted side, the median record dropped from
 36 to 33, and the worst tenth of well-drafted runs finish on 23 or fewer. A good
@@ -433,3 +438,36 @@ Arsenal's 2000s when he signed in 2010. Worth a spot-check of your own.
 6. **Report benchmarks.** `CONFIG.REPORT.BENCHMARK` defines what "a title-winning
    seven" looks like per phase, and all the gap advice hangs off it. Those four
    numbers are a judgment call worth your eye.
+
+
+### 10. When luck drowned the draft
+
+Reported from play: a side the report called short in all four phases, with
+"strongest" showing -3, finished 36-1-1 and was labelled RECORD BREAKERS.
+
+Two faults, one cosmetic and one structural.
+
+**The benchmark was unreachable.** `REPORT.BENCHMARK` was 86/82/85/85. Across
+4,000 drafted sides, none cleared it in all four phases and only 13% cleared it
+in even one, so the report told everybody their squad was short everywhere —
+including players who had just won 36 matches. It is now 82/76/79/80, measured
+from what sides winning 36-38 actually carry: 2.2% clear all four, 79% clear
+one. A test now fails if it drifts back out of reach.
+
+**Luck was deciding the season.** The correlation between squad rating and wins
+was 0.35, so the draft explained about an eighth of the result. The phase gap
+between a 20-win side and a 36-win side was under 1.5 points in every category,
+because a hidden plus-or-minus 15 swamped it. `FORM_SWING` 15 -> 8 lifts the
+correlation to 0.53 and raises p10 from 17 to 23: a good draft is no longer
+ruined by the draw. `MAX_WIN_PROB` 0.955 -> 0.98 and the curve moved with it.
+
+**What let both hide:** the only test on unbeaten seasons compared the unbeaten
+rate to the perfect rate and had no absolute ceiling, so 12% against 3% passed.
+A shape check was doing duty as a magnitude check. There are now absolute caps
+on the unbeaten rate, on the share of seasons reaching CHAMPIONS, and on the
+benchmark's reachability.
+
+Three older bounds were relaxed in the same pass, all calibrated for a curve
+that no longer exists: the random-team floor 8 -> 5 and the 38-0 floor 1% ->
+0.4%. Only floors moved; the ceilings, which are what those checks guard, did
+not.

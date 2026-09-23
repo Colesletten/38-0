@@ -97,15 +97,16 @@ Four things stop a good squad coasting:
 
 Tuned so that:
 
-| how you draft | p10 | median | p90 | 38-0 rate | unbeaten |
+| how you draft | p10 | median | p90 | 38-0 | unbeaten |
 |---|---:|---:|---:|---:|---:|
-| random players, random slots | 0 | 4 | 11 | 0% | 0% |
-| random players, sensible slots | 3 | 10 | 23 | 0% | 0% |
-| best available, best slot | 23 | **33** | 37 | **3.2%** | 14.1% |
-| the pool's theoretical best seven | — | — | — | 6.8% | — |
+| random players, random slots | 0 | 2 | 7 | 0% | 0% |
+| random players, sensible slots | 2 | 7 | 19 | 0% | 0% |
+| best available, best slot | 23 | **30** | 35 | **0.67%** | 3.6% |
+| the pool's theoretical best seven | — | 37 | — | — | — |
 
-A well-drafted side is usually denied by draws rather than defeats, and the
-worst tenth of well-drafted runs still finish on 23 wins or fewer. Every tuning
+A well-drafted side is usually denied by draws rather than defeats. Squad rating
+and final record correlate at 0.53, so the draft is most of the result and the
+season's fortune is the rest — deliberately in that order. Every tuning
 constant lives in one labelled `CONFIG` block at the top of the script. Move a
 number, reload, re-run the histogram.
 
