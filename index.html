@@ -775,6 +775,11 @@ svg{display:block;}
 
 /* ---- Misc ---- */
 .note{ font-size:11.5px; line-height:1.55; color:var(--chalk-faint); }
+.linknote{
+  margin-top:9px; font-size:11px; font-weight:700; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--chalk-faint);
+}
+.linknote.strong{ color:var(--ultra); }
 .spinmeta{ display:flex; align-items:center; gap:10px; margin-top:12px; }
 .spinmeta .crest{ box-shadow:var(--lift-2); }
 .spinmeta .smname{ font-family:var(--f-display); font-weight:900; font-size:19px; letter-spacing:-.005em; text-transform:uppercase; line-height:1; }
@@ -876,6 +881,13 @@ const CONFIG = {
                                   // that scarcity would just be frustrating,
                                   // so the difficulty lives in the season, not
                                   // in hiding players from you.
+    REPEAT_DECAY: 0.34,           // how much less likely a club is to come up
+                                  // again per time it has already been drawn.
+                                  // 1 would make repeats as common as anything
+                                  // else and the draft would stop feeling like
+                                  // a tour of the league; 0 would ban them and
+                                  // close off every same-club link. A third
+                                  // makes a return a real but uncommon chance.
   },
 
   /* ---- Eras. Exactly three. ---- */
@@ -918,12 +930,34 @@ const CONFIG = {
 
   /* ---- Chemistry & balance ---- */
   CHEM: {
-    BASE: 1.00,
+    BASE: 1.015,            // Dropping the old three-era bonus took a silent
+                            // 1.8% off four squads in five, because almost
+                            // every squad qualified for it. That was a rebate,
+                            // not a reward, so it went — and this restores the
+                            // baseline it had been propping up, without paying
+                            // anyone for doing nothing.
     FIT_WEIGHT: 0.34,       // chem *= (1-FIT_WEIGHT) + FIT_WEIGHT*avgFit
-    SAME_CLUB_ERA_PAIR: 0.018,   // per pair who actually played together
-    SAME_CLUB_ERA_CAP: 0.075,
-    ONE_ERA_BONUS: 0.030,   // a side plucked from a single moment in time
-    THREE_ERA_BONUS: 0.018, // ...or one legend from each, "timeless"
+
+    /* Links are counted per PAIR, so they grow with the square of a block:
+       two men from one dressing room is one link, three is three, four is six.
+       Stacking a club is meant to pay off steeply enough that passing on a
+       bigger name for a linked one is a real decision, which is the whole
+       point of letting a club come round twice. */
+    LINK_TEAMMATE: 0.050,   // per pair from the same club AND era — they
+                            // genuinely played together
+    LINK_CLUB: 0.020,       // per pair from the same club, different era —
+                            // the club's way of playing, one generation on
+    LINK_CAP: 0.20,         // a fully stacked block cannot run away with it.
+                            // Measured: at these values a linked side runs
+                            // about 2% ahead of a scattered one at the median
+                            // and 7% at p90, which shows up in the report
+                            // without deciding the season on its own.
+
+    ONE_ERA_BONUS: 0.030,   // a side plucked from a single moment in time.
+                            // There is deliberately no bonus for spreading
+                            // across all three: seven picks over three eras
+                            // lands there by default, and paying out for the
+                            // default is not a choice, it is a rebate.
     BALANCE_PENALTY: 0.0055,// per point of std-dev across the four phases
     BALANCE_CAP: 0.11,
     MIN: 0.62, MAX: 1.13,
@@ -1080,6 +1114,21 @@ function utcDateKey(date){
 /** Small helpers over a PRNG function. */
 const rngInt  = (rnd, n) => Math.floor(rnd() * n);
 const rngPick = (rnd, arr) => arr[rngInt(rnd, arr.length)];
+
+/** Pick by weight. Weights must be non-negative and not all zero; the caller
+    guarantees that. Walks the cumulative total so one rnd() call decides it,
+    which keeps a seeded draft reproducible. */
+function rngPickWeighted(rnd, arr, weightOf){
+  let total = 0;
+  for(const item of arr) total += weightOf(item);
+  if(total <= 0) return rngPick(rnd, arr);
+  let r = rnd() * total;
+  for(const item of arr){
+    r -= weightOf(item);
+    if(r < 0) return item;
+  }
+  return arr[arr.length - 1];
+}
 
 /** Fisher-Yates, non-mutating. */
 function rngShuffle(rnd, arr){
@@ -3146,24 +3195,23 @@ function analyseLineup(lineup){
   const C = CONFIG.CHEM;
   let chem = C.BASE * ((1 - C.FIT_WEIGHT) + C.FIT_WEIGHT * avgFit);
 
-  // Players who actually shared a dressing room.
-  let pairs = 0;
+  // Who knows whom. A shared dressing room is worth most; sharing only the
+  // badge, a generation apart, is worth a little.
+  let pairs = 0, clubPairs = 0;
   for(let i=0;i<filled.length;i++){
     for(let j=i+1;j<filled.length;j++){
       const a = filled[i].player, b = filled[j].player;
-      if(a.club && a.club === b.club && a.era === b.era) pairs++;
+      if(!a.club || a.club !== b.club) continue;
+      if(a.era === b.era) pairs++; else clubPairs++;
     }
   }
-  const clubBonus = Math.min(C.SAME_CLUB_ERA_CAP, pairs * C.SAME_CLUB_ERA_PAIR);
+  const clubBonus = Math.min(C.LINK_CAP, pairs * C.LINK_TEAMMATE + clubPairs * C.LINK_CLUB);
   chem += clubBonus;
 
-  // A side plucked from one moment in time, or one legend from each era.
+  // A side plucked from one moment in time.
   const eras = new Set(filled.map(p => p.player.era).filter(Boolean));
   let eraBonus = 0;
-  if(filled.length >= 4){
-    if(eras.size === 1) eraBonus = C.ONE_ERA_BONUS;
-    else if(eras.size === 3) eraBonus = C.THREE_ERA_BONUS;
-  }
+  if(filled.length >= 4 && eras.size === 1) eraBonus = C.ONE_ERA_BONUS;
   chem += eraBonus;
 
   // Lopsided squads are punished — this is what stops six forwards working.
@@ -3196,7 +3244,7 @@ function analyseLineup(lineup){
 
   return {
     slots, phases, chem, avgFit, overall, rating,
-    clubBonus, eraBonus, balancePenalty, pairs, eraCount: eras.size,
+    clubBonus, eraBonus, balancePenalty, pairs, clubPairs, eraCount: eras.size,
     filledCount: filled.length,
     gates, winCap, gateEdgeLoss: edgeLoss,
   };
@@ -3502,7 +3550,7 @@ function seasonReport(result, lineup, picks){
   if(a.chem < 0.97) advice.push({
     weight: 20 + (1 - a.chem) * 60,
     head: a.chem < 0.88 ? 'The seven did not fit together' : 'Chemistry left a little on the table',
-    body: 'Chemistry ' + (a.chem*100).toFixed(0) + '%. Same club and era helps, so does balance.',
+    body: 'Chemistry ' + (a.chem*100).toFixed(0) + '%. Two from one club and era is worth chasing.',
   });
   advice.sort((x, y) => y.weight - x.weight);
 
@@ -3923,6 +3971,7 @@ const GAME = {
   offered: [],
   usedCells: null,
   usedClubs: null,
+  clubDraws: null,
   usedNames: null,
   lineup: {},
   picks: [],
@@ -3965,6 +4014,7 @@ function newGame(mode){
   GAME.offered = [];
   GAME.usedCells = new Set();
   GAME.usedClubs = new Set();
+  GAME.clubDraws = new Map();
   GAME.usedNames = new Set();
   GAME.lineup = {};
   GAME.picks = [];
@@ -3978,31 +4028,36 @@ function newGame(mode){
 }
 
 /**
- * Cells still worth landing on: not already drafted from, and with players left.
+ * Cells still worth landing on: any with players you have not already signed.
  *
- * By default this also skips any club you have already raided. Seven spins that
- * visit seven different clubs feel like a tour of the league; two Chelsea cells
- * and two Arsenal cells feel like the machine is stuck. With eleven clubs and
- * seven rounds there is always room, but the filter stands down rather than
- * strand the draft if it ever cannot be satisfied.
+ * A club you have raided before can come round again, and that is the point.
+ * Two players from the same club and era actually shared a dressing room, and
+ * the chemistry model pays for it — but only if the machine is willing to hand
+ * you the same badge twice. It used to refuse, which quietly made every squad
+ * seven different clubs and left the whole same-club bonus unreachable.
  */
 function availableCells(opts){
   const o = opts || {};
-  const open = POOL.cells.filter(c =>
-    !GAME.usedCells.has(cellKey(c.club, c.era)) &&
-    c.players.some(p => !GAME.usedNames.has(p.name)));
+  const open = POOL.cells.filter(c => c.players.some(p => !GAME.usedNames.has(p.name)));
   if(!open.length) return POOL.cells;
   if(o.sameClubOk) return open;
-  const freshClubs = open.filter(c => !GAME.usedClubs.has(c.club));
-  return freshClubs.length ? freshClubs : open;
+  return open;
 }
 
-function spinCell(){ return rngPick(GAME.rnd, availableCells()); }
+/** How likely a cell is to come up, given how often its club already has.
+    Fresh clubs weigh 1, a club drawn once weighs REPEAT_DECAY, twice its
+    square, and so on. Repeats stay the exception without being impossible. */
+function cellWeight(c){
+  const drawn = GAME.clubDraws ? (GAME.clubDraws.get(c.club) || 0) : 0;
+  return Math.pow(CONFIG.DRAFT.REPEAT_DECAY, drawn);
+}
+
+function spinCell(){ return rngPickWeighted(GAME.rnd, availableCells(), cellWeight); }
 
 /** Re-spin one reel, holding the other. Returns null if nothing else is available. */
 function respinClub(){
   const opts = availableCells().filter(c => c.era === GAME.cell.era && c.club !== GAME.cell.club);
-  return opts.length ? rngPick(GAME.rnd, opts) : null;
+  return opts.length ? rngPickWeighted(GAME.rnd, opts, cellWeight) : null;
 }
 function respinEra(){
   const opts = availableCells({ sameClubOk:true })
@@ -4031,6 +4086,28 @@ function offerFrom(cell){
 
 function openSlots(){ return CONFIG.FORMATION.filter(s => !GAME.lineup[s.id]); }
 
+/** How many players already signed share this cell's club, split by whether
+    they also share its era. Drives the draft's one piece of forward-looking
+    advice: a repeat club is the only route to a same-side link. */
+function cellLinks(cell){
+  let sameSide = 0, sameClub = 0;
+  for(const slot of CONFIG.FORMATION){
+    const p = GAME.lineup[slot.id];
+    if(!p || p.club !== cell.club) continue;
+    if(p.era === cell.era) sameSide++; else sameClub++;
+  }
+  return { sameSide, sameClub };
+}
+
+function cellLinkHTML(cell){
+  const l = cellLinks(cell);
+  if(!l.sameSide && !l.sameClub) return '';
+  const word = l.sameSide
+    ? 'Same side as ' + l.sameSide + ' signed'
+    : 'Same club as ' + l.sameClub + ' signed';
+  return '<div class="linknote' + (l.sameSide ? ' strong' : '') + '">' + esc(word) + '</div>';
+}
+
 /** Commit the pending player into a slot and advance the round. */
 function assignPending(slotId){
   if(!GAME.pending || GAME.lineup[slotId]) return false;
@@ -4040,6 +4117,7 @@ function assignPending(slotId){
   if(GAME.cell){
     GAME.usedCells.add(cellKey(GAME.cell.club, GAME.cell.era));
     GAME.usedClubs.add(GAME.cell.club);
+    GAME.clubDraws.set(GAME.cell.club, (GAME.clubDraws.get(GAME.cell.club) || 0) + 1);
   }
   GAME.picks.push({
     round: GAME.round, slotId, player, club: player.club, era: player.era,
@@ -4278,7 +4356,55 @@ function testDraft(){
     GAME.screen === 'results' && GAME.result &&
     GAME.result.wins + GAME.result.draws + GAME.result.losses === CONFIG.SEASON.MATCHES);
 
-  // Variety: a draft should tour the league, not circle one club.
+  // The same-club bonus was unreachable for a long time: the spin refused to
+  // hand you a club twice, so `pairs` was always 0 and the results screen was
+  // advising something the game forbade. These two guard that it stays live.
+  (() => {
+    let anyLink = 0, anySide = 0, runs = 0;
+    for(let g=0; g<300; g++){
+      newGame('free');
+      let guard = 0;
+      while(GAME.screen === 'draft' && guard++ < 50){
+        GAME.cell = spinCell();
+        GAME.offered = offerFrom(GAME.cell);
+        GAME.pending = GAME.offered[0];
+        assignPending(openSlots()[0].id);
+      }
+      const a = analyseLineup(GAME.lineup);
+      runs++;
+      if(a.pairs > 0 || a.clubPairs > 0) anyLink++;
+      if(a.pairs > 0) anySide++;
+    }
+    check('SIM: a same-club link is actually reachable by playing',
+      anySide > runs * 0.08,
+      anySide + ' of ' + runs + ' drafts shared a dressing room');
+    check('SIM: most drafts offer some club link to build on',
+      anyLink > runs * 0.35,
+      anyLink + ' of ' + runs + ' drafts had a club link');
+  })();
+
+  // Chemistry has to be worth chasing, or it is decoration.
+  (() => {
+    const F = CONFIG.FORMATION;
+    const cell = POOL.cells.find(c => c.players.length >= F.length);
+    const stacked = {}, scattered = {};
+    F.forEach((slot, i) => { stacked[slot.id] = cell.players[i]; });
+    // One cell per distinct club, or this is not scattered at all: POOL.cells
+    // is club-major, so taking consecutive cells would hand back a club block.
+    const byClub = [];
+    const seenClub = new Set();
+    for(const c of POOL.cells){
+      if(c.club === cell.club || seenClub.has(c.club)) continue;
+      seenClub.add(c.club); byClub.push(c);
+    }
+    F.forEach((slot, i) => { scattered[slot.id] = byClub[i % byClub.length].players[0]; });
+    const a = analyseLineup(stacked), b = analyseLineup(scattered);
+    check('SIM: a stacked block out-chemisters a scattered side by a real margin',
+      a.clubBonus >= CONFIG.CHEM.LINK_CAP * 0.9 && b.clubBonus < a.clubBonus * 0.5,
+      'stacked +' + a.clubBonus.toFixed(3) + ' vs scattered +' + b.clubBonus.toFixed(3));
+  })();
+
+  // Variety: a club may come round again, but the draft still tours the league.
   (() => {
     let repeats = 0, runs = 0, distinct = {};
     for(let g=0; g<200; g++){
@@ -4296,8 +4422,16 @@ function testDraft(){
       if(new Set(clubs).size !== clubs.length) repeats++;
       distinct[new Set(clubs).size] = (distinct[new Set(clubs).size] || 0) + 1;
     }
-    check('DRAFT: a single draft never visits the same club twice',
-      repeats === 0, repeats + ' of ' + runs + ' drafts repeated a club; sizes ' + JSON.stringify(distinct));
+    // A repeat is the opening that makes a same-club link possible, so it has
+    // to happen often enough to matter. It also must not take over: four
+    // distinct clubs out of seven picks is the floor worth defending.
+    const sizes = Object.keys(distinct).map(Number);
+    check('DRAFT: a club can come round again, often enough to build on',
+      repeats > runs * 0.25 && repeats < runs * 0.90,
+      repeats + ' of ' + runs + ' drafts repeated a club; sizes ' + JSON.stringify(distinct));
+    check('DRAFT: no draft collapses onto a handful of clubs',
+      Math.min.apply(null, sizes) >= 4,
+      'fewest distinct clubs seen: ' + Math.min.apply(null, sizes) + '; sizes ' + JSON.stringify(distinct));
   })();
 
   // Free play must actually feel different game to game.
@@ -4607,11 +4741,16 @@ function viewDraft(){
     ? '<div class="reel-track">' + reelItemHTML('era', cell.era) + '</div>'
     : (spinning ? '<div class="reel-track"></div>' : '<div class="reel-track">' + reelItemHTML('era', null) + '</div>');
 
+  // What this cell is worth beyond its players: a club you have already
+  // signed from is where chemistry comes from, and the machine offering it
+  // again is the only chance you get to build a block.
+  const linkNote = (picking && cell) ? cellLinkHTML(cell) : '';
+
   const reels =
     '<div class="reelbay">' +
       '<div class="reel' + (picking?' locked':'') + '" id="reel-club"><span class="reel-cap">Club</span>' + clubReel + '</div>' +
       '<div class="reel' + (picking?' locked':'') + '" id="reel-era"><span class="reel-cap">Era</span>' + eraReel + '</div>' +
-    '</div>' +
+    '</div>' + linkNote +
     '<p class="sr-only" role="status" aria-live="polite">' +
       (picking && cell ? esc(cell.club) + ', ' + esc(cell.era) + '. ' + GAME.offered.length + ' players offered.'
        : spinning ? 'Spinning.' : 'Ready to spin round ' + (GAME.round+1) + ' of ' + CONFIG.DRAFT.ROUNDS + '.') +
@@ -4958,7 +5097,11 @@ function viewResults(){
       '<div class="meters">' + phaseRows + '</div>' +
       '<p class="note" style="margin-top:12px">Chemistry <b style="color:var(--chalk-soft)">' +
         (a.chem*100).toFixed(0) + '%</b> &middot; ' +
-        (a.pairs ? a.pairs + ' shared dressing room' + (a.pairs>1?'s':'') : 'no shared dressing rooms') +
+        (a.pairs
+          ? a.pairs + ' shared dressing room' + (a.pairs>1?'s':'')
+          : a.clubPairs
+            ? a.clubPairs + ' club link' + (a.clubPairs>1?'s':'')
+            : 'no club links') +
         ' &middot; ' + a.eraCount + ' era' + (a.eraCount===1?'':'s') + '</p>' +
       '<div class="tiles" style="margin-top:14px">' + tilesHTML + '</div>' +
 

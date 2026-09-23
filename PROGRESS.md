@@ -177,7 +177,59 @@ geometric sans set light against heavy.
   separates on tone. The assignment sheet keeps its cyan leading edge, which
   marks a surface rising over the screen.
 
-### 6. Telling the two modes apart
+### 6. The chemistry that was never reachable
+
+Measured before touching anything: across 2,000 simulated drafts, the number
+that ended with two players from the same club and era was **zero**. The spin
+rule preferred clubs you had not used and banned the exact cell you had just
+drafted from, so with eleven clubs and seven rounds every squad came out as
+seven different clubs across about three eras — the same shape, every game.
+`SAME_CLUB_ERA_PAIR` and its cap were dead constants, and the results screen
+was advising players to do something the game forbade.
+
+Chemistry as a whole moved across 0.969–1.016, under 5% of the 0.62–1.13 band
+the config allowed. It was decoration.
+
+The fix was three parts:
+
+- **A club can come round again.** `availableCells` no longer bans a used cell
+  or prefers a fresh club. Instead `cellWeight` decays a club's odds by
+  `REPEAT_DECAY` (0.34) per time it has been drawn, so a repeat is uncommon but
+  real. Measured: a club repeats in 58% of drafts, and the median draft still
+  visits 6 distinct clubs out of 7 picks. Two tests now guard both ends —
+  repeats must happen in more than 25% of drafts and no draft may collapse
+  below 4 distinct clubs.
+- **Links are counted per pair, and are worth something.** `LINK_TEAMMATE`
+  0.050, `LINK_CLUB` 0.020, capped at 0.20.
+- **The three-era bonus went.** 82% of drafts qualified for it, so it was a
+  rebate on the default rather than a reward for a choice. Removing it took a
+  silent 1.8% off four squads in five, so `CHEM.BASE` went to 1.015 to restore
+  the baseline it had been propping up.
+
+Result, over 3,000 well-drafted seasons: p10 23, median 32, p90 37, 38-0 at
+2.9% — back on the old targets. A teammate pair now appears in 25% of drafts
+and some club link in 63%. The squads that land in the **top 20% for chemistry
+go unbeaten 4.0% of the time against 1.8% for the bottom 20%**, so it is a
+visible lever rather than noise.
+
+#### What this does not fix
+
+Worth recording honestly, because it was measured and it bounds what chemistry
+can ever be here. A bot that deliberately pays up to 20 rating points for a
+link does **not** beat a bot that ignores chemistry entirely — both land on a
+median of 32. The reason is that every player in a cell shares that cell's
+club, so once the reels have stopped there is no chemistry decision left to
+make; the spin has already decided it. Giving the player a choice of two cells
+per round does create real agency (teammate pairs rise from 29% to 46% when
+chased, and the perfect-season rate from 2.3% to 3.5%), but that changes the
+core slot-machine loop and has not been built.
+
+So chemistry is currently a **dividend you can recognise and protect** — mainly
+by not spending a skip when the reels offer a club you have already signed
+from — rather than a plan you can execute. Making it the latter needs either
+the two-cell choice above or a squad budget.
+
+### 7. Telling the two modes apart
 
 Reported as "I keep getting Aston Villa and West Ham, it's the same sequence
 every time". It was not a randomness bug — free play's seeding measured clean

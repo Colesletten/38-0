@@ -154,6 +154,24 @@ of numbers rather than five labelled bars. The figures are comparable, so a
 column of them scans faster than a column of bars and costs a quarter of the
 room.
 
+## Chemistry
+
+Seven legends from seven different clubs is a collection, not a team. Chemistry
+is what makes it a side, and it is counted per **pair**: two men from the same
+club *and* era actually shared a dressing room and are worth the most; two from
+the same club a generation apart are worth a little. Because it is per pair, a
+block grows with its square — two is one link, three is three, four is six — so
+stacking a club pays off steeply enough to be worth passing on a bigger name for.
+
+For that to be possible at all, the machine has to be willing to hand you the
+same badge twice, and it now is: a club that has already come up is weighted
+down rather than banned. When the reels land on a club you have signed from,
+the draft says so, because that is the only moment the choice exists.
+
+There is no bonus for fielding one player from each era. Seven picks across
+three eras land there by default, and paying out for the default is a rebate,
+not a reward.
+
 The palette is only the four brand colours plus white, mapped semantically:
 
 | | |
