@@ -151,6 +151,31 @@ geometric sans set light against heavy.
   the interface on top of it is square.
 - The brand's visual language is used; the lion crest is not, since it is a
   trademark. Club crests stay procedural.
+- **A refinement pass afterwards** stripped what read as filler. Box borders
+  went from 14 to 6: only the buttons and the two mode cards keep a stroke,
+  because those are the things you press; everything else separates on tone.
+  The decorative hairline that trailed off every section heading is gone, as
+  is the Won/Drawn/Lost colour key (the period rows already print coloured
+  counts) and the fortune word above the scale that restated it. Copy was cut
+  hard — the title paragraph, the mode eyebrow, the round and pick counters,
+  the pool count, the assignment explanation, the advice numbering, and every
+  advice body down to one sentence.
+- **Two generated lines read as machine-written and were fixed at the source.**
+  The gate note printed the same full sentence under every failing phase; it
+  is now just `Below 62`. And a phase that missed its gate also produced a
+  near-identical "was your weak suit" item, so "Goalkeeping" appeared twice in
+  a row; the gap item is now suppressed when the gate already named that phase.
+- **The five ratings stayed on the card, in a smaller form.** The pass first
+  removed them entirely — five bars with five repeated labels across fifty
+  cards was the largest single source of clutter. That went too far: the
+  ratings are the decision. They came back as one line of labelled numbers,
+  which carries the same information in a fifth of the room and scans faster,
+  since the figures are directly comparable. The club-colour bar down the left
+  of the card was dropped to make the width for it.
+- **The cyan rules came off** the header and the club/era boxes. Neither
+  carried meaning — the reel stopping is the lock signal and the header already
+  separates on tone. The assignment sheet keeps its cyan leading edge, which
+  marks a surface rising over the screen.
 
 ### 6. Telling the two modes apart
 
