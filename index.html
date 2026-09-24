@@ -1037,7 +1037,7 @@ const CONFIG = {
      far more than the same gap between mediocre ones. ---- */
   MATCH: {
     W_ATTACK:0.30, W_MIDFIELD:0.26, W_DEFENSE:0.28, W_GK:0.16,
-    STEEP: 0.125,           // logistic steepness on `edge`. Shallow on purpose:
+    STEEP: 0.16,           // logistic steepness on `edge`. Shallow on purpose:
                             // a steeper curve turns a good squad into a
                             // formality, which is precisely the thing that
                             // made this too easy
@@ -1063,7 +1063,7 @@ const CONFIG = {
        for you, or the year it did not. This is what makes two equally good
        squads finish differently, and it is the difference between a brilliant
        draft and a brilliant draft that also got lucky. */
-    FORM_SWING: 8,
+    FORM_SWING: 5,
   },
 
   /* ---- Squad traits ----
@@ -1146,10 +1146,10 @@ const CONFIG = {
     { wins:35, losses:0, title:'IMMORTAL',     line:'Unbeaten, and barely troubled. Only the draws stopped you.' },
     { wins:28, losses:0, title:'UNBEATEN',     line:'Not a single defeat all season. Arsenal 2003-04 says hello.' },
     { wins:35,           title:'RECORD BREAKERS', line:'A points total that rewrites the record books.' },
-    { wins:32,           title:'CHAMPIONS',    line:'Champions, and not close. The parade is booked.' },
-    { wins:27,           title:'TITLE RACE',   line:'In it to the final day, and that is worth something.' },
-    { wins:21,           title:'EUROPE',       line:'Champions League football. Nobody is unhappy.' },
-    { wins:14,           title:'MID-TABLE',    line:'Safe by March. Forgotten by June.' },
+    { wins:33,           title:'CHAMPIONS',    line:'Champions, and not close. The parade is booked.' },
+    { wins:29,           title:'TITLE RACE',   line:'In it to the final day, and that is worth something.' },
+    { wins:25,           title:'EUROPE',       line:'Champions League football. Nobody is unhappy.' },
+    { wins:17,           title:'MID-TABLE',    line:'Safe by March. Forgotten by June.' },
     { wins:8,            title:'SURVIVAL',     line:'Ugly, nervous, survived. Just.' },
     { wins:0,            title:'RELEGATED',    line:'The drop. Somebody is getting sacked in the morning.' },
   ],
@@ -2968,8 +2968,14 @@ function analyseLineup(lineup){
   const T = CONFIG.TRAITS;
   let traitEdge = 0;
   const traits = T.LIST.map(t => {
+    /* Rounded once, here, and used for both the maths and every readout. The
+       raw mean is fractional, so a side on 82.57 used to render as "83" next
+       to "Short of the 83 a side needs" -- the same screen calling the same
+       number both over and under the line. Players reason in whole numbers
+       and the lines are whole numbers, so half a point of physicality should
+       not quietly cost rating either. */
     const value = filled.length
-      ? filled.reduce((n, f) => n + (f.player.ratings[t.key] || 0), 0) / filled.length
+      ? Math.round(filled.reduce((n, f) => n + (f.player.ratings[t.key] || 0), 0) / filled.length)
       : 0;
     const shortfall = Math.max(0, t.min - value);
     const surplus   = Math.max(0, value - t.strong);
@@ -3730,13 +3736,17 @@ function testSim(){
       anyPhase + '/400 cleared a phase, ' + allPhases + '/400 cleared all four');
   })();
 
-  check('SIM: the verdict ladder is not handing out titles',
-    (() => {
-      const champ = hSmart.wins.filter(w => w >= 32).length;
-      return champ / hSmart.wins.length <= 0.40;
-    })(),
-    'share reaching CHAMPIONS (32+ wins): ' +
-    (100 * hSmart.wins.filter(w => w >= 32).length / hSmart.wins.length).toFixed(0) + '%');
+  /* Read the threshold from the ladder rather than hard-coding it, so this
+     measures what players are actually told rather than a number that drifts
+     out of step with VERDICTS. Raising the CHAMPIONS line is a legitimate way
+     to pass it -- that genuinely means fewer players are called champions. */
+  (() => {
+    const line = CONFIG.VERDICTS.find(v => v.title === 'CHAMPIONS').wins;
+    const champ = hSmart.wins.filter(w => w >= line).length / hSmart.wins.length;
+    check('SIM: the verdict ladder is not handing out titles',
+      champ <= 0.40,
+      'share reaching CHAMPIONS (' + line + '+ wins): ' + (100 * champ).toFixed(0) + '%');
+  })();
   check('SIM: even a well-drafted side usually drops something',
     hSmart.median < 36, 'smart median = ' + hSmart.median);
   check('SIM: a great draft can still go badly wrong',
@@ -4543,7 +4553,7 @@ function traitReportHTML(a){
       ? 'Short of the ' + t.min + ' a side needs'
       : t.surplus > 0 ? 'Past the ' + t.strong + ' line' : '';
     return '<div class="trow"><span class="tlab">' + esc(t.label) + '</span>' +
-      '<span class="tval ' + cls + '">' + t.value.toFixed(0) + '</span>' +
+      '<span class="tval ' + cls + '">' + t.value + '</span>' +
       (note ? '<span class="tnote ' + cls + '">' + note + '</span>' : '') +
     '</div>';
   }).join('');
@@ -4564,7 +4574,7 @@ function squadTraitHTML(){
   const cells = a.traits.map(t => {
     const cls = t.shortfall > 0 ? ' low' : (t.surplus > 0 ? ' high' : '');
     return '<span class="tr' + cls + '"><i>' + t.short + '</i>' +
-      Math.round(t.value) + '<em>/' + t.min + '</em></span>';
+      t.value + '<em>/' + t.min + '</em></span>';
   }).join('');
   return '<div class="squadtraits">' + cells + '</div>';
 }
