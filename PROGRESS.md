@@ -471,3 +471,54 @@ Three older bounds were relaxed in the same pass, all calibrated for a curve
 that no longer exists: the random-team floor 8 -> 5 and the 38-0 floor 1% ->
 0.4%. Only floors moved; the ceilings, which are what those checks guard, did
 not.
+
+
+### 11. The trait line that called 83 short of 83
+
+Reported from play, with screenshots: the draft readout showed `PHY 84 /83`,
+and the results screen then showed `PHYSICALITY 83 - Short of the 83 a side
+needs`.
+
+The squad trait was a raw mean, so the real figure was something like 82.57.
+`toFixed(0)` rendered it as **83** while `shortfall = max(0, 83 - 82.57)` was
+**0.43**, so the same row printed a number that clears the line beside a
+verdict that says it does not. The value is now rounded once, where it is
+computed, and that single integer drives the maths, the draft readout and the
+report. Verified two ways: 0 disagreements across 800 trait rows in the engine,
+and 0 across 12 rows driven through the real UI.
+
+Worth knowing about the draft readout regardless: it averages the players
+signed *so far*, so the seventh pick moves it. Six players averaging 84 can
+land on 83 once the last one joins. That is arithmetic rather than a fault, but
+it does mean the number is a running total and not a promise.
+
+### 12. Tilting the result back towards the draft
+
+Asked for: less swing, and a much better reward for a draft that ticks every
+box. `FORM_SWING` 8 -> 5 and `STEEP` 0.125 -> 0.16 together lift the
+correlation between squad rating and final record from **0.52 to 0.64**, so the
+draft now explains about 41% of the outcome rather than 27%.
+
+Raising `STEEP` was rejected once before, at `FORM_SWING` 15, because it helped
+the strongest sides most and pushed unbeaten seasons *up*. With the swing
+halved that is exactly the property wanted, and the overall unbeaten rate still
+fell (3.6% -> 2.9%).
+
+By draft quality, as 38-0% / unbeaten%:
+
+| squad rating | before | after |
+|---|---|---|
+| top 10% | 5.0% / 13.8% | **4.5% / 16.8%** |
+| middle | 0.0% / 1.4% | **0.0% / 0.4%** |
+| bottom 20% | 0.0% / 0.0% | 0.0% / 0.0% |
+
+An excellent draft goes unbeaten about one time in six; a middling one, one in
+250; a poor one never. Raising `TRAITS.MAX_SWING` was tried and dropped -- the
+cap almost never binds, so it changed nothing.
+
+The ladder moved with the distribution: CHAMPIONS 32 -> 33, TITLE RACE 27 ->
+29, EUROPE 21 -> 25, MID-TABLE 14 -> 17. TITLE RACE had swollen to 54% of all
+seasons, one verdict for half the games played; it is now 39% with EUROPE on
+25% and MID-TABLE on 12%. The test that guards this now reads the CHAMPIONS
+line out of `VERDICTS` instead of hard-coding it, so it measures what players
+are actually told.
