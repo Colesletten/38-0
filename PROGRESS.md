@@ -9,10 +9,10 @@ in [`SPEC.md`](SPEC.md); how to play and how it works is in
 All six milestones from the original brief are done, plus a second round of
 changes from playtest feedback.
 
-**88/88 self-checks green.** Verified in Chromium at 360×640, 390×844 and
-1440×900, with `prefers-reduced-motion`, and opened directly from `file://`.
-A Playwright network audit confirms the page still makes exactly **one** HTTP
-request: the document itself.
+**104/104 self-checks green.** Verified in Chromium at 320×568, 360×640,
+390×844 and 1440×900, in both draft modes, with `prefers-reduced-motion`, and
+opened directly from `file://`. A Playwright network audit confirms the page
+still makes exactly **one** HTTP request: the document itself.
 
 ---
 
@@ -633,3 +633,89 @@ is 4.5% of drafts and picking better barely moves it -- an optimiser that
 maximises squad rating every round reaches 88+ *less* often than plain greedy.
 The ceiling is the spins, not the player's judgement, which is the opposite of
 what the game is supposed to reward.
+
+---
+
+### 15. Making 88 mean something, and a third reel
+
+Two requests in one: *"38-0 should be about 1 in 5 for 88+ squads, and
+everything else should scale from there"*, and *"three spinners — club, era,
+position — and you choose which two to spin each round, never the same two
+twice."*
+
+#### The rescale
+
+The previous section left the game at 1 in 13 for an 88+ squad and 1 in 195
+overall, with the ladder compressed: an 86-87 squad and an 88+ squad were nearly
+the same bet. The dial that fixes that is `MATCH.STEEP`, which decides how much
+of a match a rating advantage is worth. It went **0.16 -> 0.48**, and the four
+fixture tiers moved with it (rivals 81 -> 80, mid-table 61 -> 62, strugglers
+52 -> 53) so the median season did not collapse while the top of the ladder
+stretched.
+
+16,000 games through the real loop:
+
+| squad rating | unbeaten | 38-0 |
+|---|---|---|
+| under 80 | 1 in 173 | never |
+| 80-81 | 1 in 19 | 1 in 440 |
+| 82-83 | 1 in 7 | 1 in 149 |
+| 84-85 | 1 in 4 | 1 in 24 |
+| 86-87 | 1 in 2 | 1 in 10 |
+| 88+ | 1 in 2 | **1 in 5** |
+
+Three consequences, each a deliberate decision rather than a side effect:
+
+- **Verdict thresholds moved.** CHAMPIONS 33 -> 34, RECORD BREAKERS 35 -> 36,
+  TITLE RACE 29 -> 30. A steeper curve raises the median season, and a verdict
+  that most seasons clear is not a verdict.
+- **The unbeaten test cap went 6% -> 15%.** This is the uncomfortable one. 12.9%
+  of seasons now finish unbeaten, which reads high. It is the direct cost of the
+  1-in-5 brief: you cannot make 88+ go 38-0 one season in five without also
+  making very good squads hard to beat. The constant carries a comment saying so
+  and saying to bring it back down if 38-0 is ever retargeted.
+- **The random-team floor went 5 wins -> 2.** A steeper curve punishes a bad
+  draft harder, which is the point.
+
+#### The third reel
+
+`CONFIG.DRAFT.WHEELS` is `'two'` or `'three'`, switched from the title screen or
+forced with `?wheels=two|three`. Three pairings — club+era, club+position,
+era+position — each usable exactly twice, which is six uses across seven rounds
+(round one spins all three).
+
+The bug worth recording: **3,500 of 6,000 test drafts ended with an incomplete
+lineup.** Two rules were in conflict. "Each pairing exactly twice" says which
+pairings you may still use; "you cannot hold a line you have already filled"
+says which are legal. Late in a draft the remaining budget was routinely all
+dead pairings, and the round simply refused. `availableCombos` now lets budget
+win — it filters to pairings you can still afford, prefers the ones whose held
+wheel is still live, and falls back to the affordable set — and `spinWheels`
+re-spins a held position wheel that has gone stale. Zero incomplete drafts
+since.
+
+Verified in Chromium at 320x568, 360x640, 390x844 and 1440x900, with
+`prefers-reduced-motion`, in both modes: seven rounds completed, all six
+pairings used exactly twice, no console errors, no horizontal overflow, dock on
+screen, and the network audit still reads exactly one request per mode.
+
+#### Three reels is easier, and is left that way
+
+The ladder above is a property of the season, so it is identical in both modes.
+What changes is how often you reach each rung, and a position wheel that only
+lands on a line you still need is a large gift:
+
+| 25,000 drafts each | two reels | three reels |
+|---|---:|---:|
+| median squad rating | 81.3 | 85.0 |
+| p90 squad rating | 86.2 | 90.0 |
+| reaching 88+ | 4.7% | 21.9% |
+| unbeaten | 1 in 8 | 1 in 3 |
+| 38-0 | 1 in 50 | 1 in 15 |
+
+It is shipped unretuned on purpose: retuning it now would mean comparing two
+different games rather than two draft mechanics. If three reels is the keeper,
+the correction belongs in the line wheel's scarcity — letting it land on lines
+you have already filled, so a held line can be a liability — and not in the
+opponents, because moving the opponents would break the 1-in-5 that the whole
+rescale was for.

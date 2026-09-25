@@ -34,8 +34,21 @@ get wrong:
   day gets the same seven spins. Replaying it deliberately repeats it; once
   you've played it, the card says so and shows your record.
 
-A single draft never visits the same club twice, so seven spins are a tour of the
-league rather than two Chelsea cells and two Arsenal cells.
+A club that has already come up is weighted down rather than banned, so the
+reels mostly tour the league but will hand you the same badge twice — which is
+the only way a chemistry block can exist at all.
+
+The title screen also carries a **Draft** switch with two ways to spin:
+
+- **Two reels** — club and era. One skip each, and a filter bar for the line you
+  want. This is the original game.
+- **Three reels** — club, era and line. Each round you choose which *two* to
+  turn and which one to hold, and you can use each of the three pairings exactly
+  twice across the seven rounds. There are no skips and no filter bar, because
+  the line wheel already is one.
+
+The choice is remembered, and `?wheels=two` / `?wheels=three` forces it.
+
 - **Copy result** — puts a shareable emoji season grid on your clipboard.
 
 The results screen is a report, not a scoreboard: what the seven were *worth*
@@ -75,8 +88,8 @@ length, so extending to a full XI means adding entries there and nothing else.
 Your seven players roll up into four phase ratings — **attack, midfield,
 defence, goalkeeping** — scaled by how well each one suits the slot you put them
 in. A chemistry multiplier rewards players who actually shared a dressing room
-and punishes a lopsided squad. That produces one team rating, which meets a
-rising opponent curve whose last twelve matches are a genuine title run-in.
+and punishes a lopsided squad. That produces one team rating, which meets a real
+fixture list: nineteen opponents, home and away, in a fixed shuffled order.
 
 Four things stop a good squad coasting:
 
@@ -92,23 +105,34 @@ Four things stop a good squad coasting:
 - **Category gates.** A phase below its threshold bleeds points from matchday 20
   and hard-caps how many wins the season can produce, surrendered from the
   hardest fixtures backwards. You cannot win the league with a hole in you.
-- **A shallow response curve.** Rating matters, but not so much that a good
-  squad becomes a formality.
+- **A steep response curve.** `MATCH.STEEP` is what decides how much the draft
+  is worth against the season's luck. It is set so that a squad good enough to
+  rate 88 goes 38-0 about one season in five, and everything below that falls
+  away from there.
 
-Tuned so that:
+Tuned so that, over 25,000 seasons drafted through the real game loop:
 
-| how you draft | p10 | median | p90 | 38-0 | unbeaten |
+| how you draft | p10 | median | p90 | unbeaten | 38-0 |
 |---|---:|---:|---:|---:|---:|
-| random players, random slots | 0 | 1 | 5 | 0% | 0% |
-| random players, sensible slots | 1 | 7 | 18 | 0% | 0% |
-| best available, best slot | 25 | **30** | 35 | **0.51%** | 2.9% |
-| the pool's theoretical best seven | — | 37 | — | — | — |
+| random players, random slots | 0 | 4 | 19 | 1 in 4,000 | never |
+| best available, best slot | 26 | **32** | 36 | 1 in 8 | **1 in 50** |
 
-A well-drafted side is usually denied by draws rather than defeats. Squad rating
-and final record correlate at 0.53, so the draft is most of the result and the
-season's fortune is the rest — deliberately in that order. Every tuning
-constant lives in one labelled `CONFIG` block at the top of the script. Move a
-number, reload, re-run the histogram.
+And that the draft, not the season, is what decides it:
+
+| squad rating | champion or better | unbeaten | 38-0 |
+|---|---|---|---|
+| under 80 | 1 in 15 | 1 in 149 | never |
+| 80-81 | 1 in 4 | 1 in 20 | 1 in 1,204 |
+| 82-83 | 1 in 2 | 1 in 7 | 1 in 78 |
+| 84-85 | 1 in 2 | 1 in 4 | 1 in 28 |
+| 86-87 | 1 in 1 | 1 in 2 | 1 in 12 |
+| 88+ | 1 in 1 | 1 in 2 | **1 in 5** |
+
+A well-drafted side is usually denied by draws rather than defeats. That ladder
+is a property of the season, so it holds identically in both draft modes; what
+the modes change is how often you reach each rung. Every tuning constant lives
+in one labelled `CONFIG` block at the top of the script. Move a number, reload,
+re-run the histogram.
 
 ## Data honesty
 
@@ -123,9 +147,9 @@ confident about was left out rather than guessed, and pools wanting a human audi
 carry `// REVIEW:` comments — all of them are listed in
 [`PROGRESS.md`](PROGRESS.md).
 
-11 clubs, 32 club/era cells, **1,651 players** — a median of 51 per club/era,
-and the whole squad is offered every spin, filtered by line. Leicester has no
-2000s pool because they were not in the division for most of it.
+31 clubs, 56 club/era cells, **1,120 players** — exactly 20 per club and era, and
+the whole squad is offered every spin, filtered by line. Leicester has no 2000s
+pool because they were not in the division for most of it.
 
 ## Design
 
@@ -202,6 +226,41 @@ The six fixtures against title rivals are also what separates an unbeaten
 season from a perfect one. Winning all six compounds, so a small edge in squad
 quality becomes a large edge in the odds — which is the difference between
 being good and being untouchable.
+
+## Two reels or three
+
+The two-reel draft deals you a club and an era and asks which of those twenty
+players you want. Everything you can do about a bad hand is defensive: one club
+skip, one era skip, and a filter to find the line you still need.
+
+The three-reel draft adds a **line** wheel and inverts that. Each round you pick
+which *two* of the three to turn — club + era, club + line, or era + line — and
+the third holds what it landed on last time. Each pairing is available exactly
+twice, so the seven rounds spend all six uses and the shape of your draft is a
+sequence of decisions rather than a sequence of reactions. Between rounds the
+reels stay lit, dimmed, showing what you are holding; without that the choice is
+blind.
+
+The rule that each pairing may be used twice can collide with the rule that
+holding a line you have already filled is illegal. Budget wins: when the only
+affordable pairings would hold a dead line, the draft re-spins that wheel rather
+than refusing the round. Losing that argument deadlocked 3,500 of 6,000 test
+drafts before it was settled.
+
+It is markedly the easier mode, and deliberately unretuned so the two can be
+compared as they are. A line wheel that only ever lands on a slot you still need
+means every offer is usable, so squads come out much stronger:
+
+| | two reels | three reels |
+|---|---:|---:|
+| median squad rating | 81.3 | **85.0** |
+| drafts reaching 88+ | 4.7% | **21.9%** |
+| unbeaten | 1 in 8 | 1 in 3 |
+| 38-0 | 1 in 50 | 1 in 15 |
+
+The per-rating ladder is unchanged — 88+ still goes 38-0 one time in five — so
+three reels is not a softer season, it is a more generous draft. If it is the
+one worth keeping, the lever is the line wheel's scarcity, not the opponents.
 
 ## Squad traits
 

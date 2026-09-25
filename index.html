@@ -437,6 +437,8 @@ svg{display:block;}
 .reel::before{ top:0;    background:linear-gradient(180deg,var(--ink-750),transparent); }
 .reel::after { bottom:0; background:linear-gradient(0deg,  var(--ink-750),transparent); }
 .reel-track{ will-change:transform; }
+/* A reel holding last round's result, waiting to be kept or re-spun. */
+.reel-track.held{ opacity:.46; }
 .reel-item{
   height:104px; display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:7px; padding:0 8px; text-align:center;
@@ -806,6 +808,31 @@ svg{display:block;}
 .trow .tnote{ margin-left:auto; font-size:11px; color:var(--chalk-faint); }
 .trow .tnote.bad{ color:var(--flare); } .trow .tnote.good{ color:var(--ultra); }
 
+.reelbay--three{ grid-template-columns:1fr 1fr 1fr; gap:8px; }
+.reelbay--three .reel-item .rname{ font-size:12px; }
+.reelbay--three .reel-item .rera{ font-size:22px; }
+.combos{ display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+.combocap{
+  font-size:9.5px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--chalk-ghost); margin-bottom:2px;
+}
+.combobtn{ justify-content:flex-start; gap:8px; min-height:44px; }
+.combobtn .cb-main{ font-size:12.5px; }
+.combobtn .cb-keep{
+  font-size:9.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--chalk-ghost);
+}
+.combobtn .skipct{ margin-left:auto; }
+
+.modesw{
+  display:flex; align-items:center; gap:8px; margin:10px auto 0;
+  background:none; border:none; padding:4px 2px; cursor:pointer;
+  font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--chalk-ghost);
+}
+.modesw .msw-val{ color:var(--chalk-faint); }
+.modesw .msw-val.on{ color:var(--volt); }
+
 .squadtraits{
   display:flex; gap:16px; margin-top:14px;
   font-family:var(--f-mono); font-variant-numeric:tabular-nums;
@@ -926,6 +953,13 @@ const CONFIG = {
                                   // that scarcity would just be frustrating,
                                   // so the difficulty lives in the season, not
                                   // in hiding players from you.
+    /* 'two'   the club and era reels, one spin a round (the original)
+       'three'  a third reel for position. Round one spins all three; after
+                that you choose which TWO to re-spin and keep the third, and
+                each of the three pairings may be used exactly twice, which
+                fills the remaining six rounds exactly. Flipped from the home
+                screen or ?wheels=three. */
+    WHEELS: 'two',
     REPEAT_DECAY: 0.90,           // how much less likely a club is to come up
                                   // again per time it has already been drawn.
                                   // 1 would make repeats as common as anything
@@ -1036,10 +1070,10 @@ const CONFIG = {
      all six, which is what separates an unbeaten season from a perfect one. */
   FIXTURES: {
     TIERS: [
-      { n:3, rating:81, label:'title rivals' },
+      { n:3, rating:80, label:'title rivals' },
       { n:5, rating:71, label:'the chasing pack' },
-      { n:6, rating:61, label:'mid-table' },
-      { n:5, rating:52, label:'strugglers' },
+      { n:6, rating:62, label:'mid-table' },
+      { n:5, rating:53, label:'strugglers' },
     ],
     SPREAD: 2.5,            // per-opponent variation inside a tier
     AWAY_PENALTY: 3,        // the same side is harder at their place
@@ -1052,10 +1086,17 @@ const CONFIG = {
      far more than the same gap between mediocre ones. ---- */
   MATCH: {
     W_ATTACK:0.30, W_MIDFIELD:0.26, W_DEFENSE:0.28, W_GK:0.16,
-    STEEP: 0.16,           // logistic steepness on `edge`. Shallow on purpose:
-                            // a steeper curve turns a good squad into a
-                            // formality, which is precisely the thing that
-                            // made this too easy
+    STEEP: 0.48,            // logistic steepness on `edge`, and the single
+                            // constant that decides how much the draft is
+                            // worth against the season's luck. It was 0.16,
+                            // shallow so a good squad was never a formality,
+                            // which compressed the top of the ladder until an
+                            // 86 and an 88 were the same bet. At 0.48 a squad
+                            // rated 88 goes 38-0 about one season in five and
+                            // everything below it falls away, which is the
+                            // brief. Raising it further makes an elite draft
+                            // a formality; lowering it hands the season back
+                            // to luck.
     DRAW_BAND: 0.34,        // share of the probability mass nearest parity
                             // that becomes a draw
     DRAW_DECAY: 0.150,      // how fast draws vanish as the edge grows. Draws
@@ -1160,9 +1201,9 @@ const CONFIG = {
     { wins:38, losses:0, title:'INVINCIBLE',   line:'Thirty-eight played. Thirty-eight won. This has never happened.' },
     { wins:35, losses:0, title:'IMMORTAL',     line:'Unbeaten, and barely troubled. Only the draws stopped you.' },
     { wins:28, losses:0, title:'UNBEATEN',     line:'Not a single defeat all season. Arsenal 2003-04 says hello.' },
-    { wins:35,           title:'RECORD BREAKERS', line:'A points total that rewrites the record books.' },
-    { wins:33,           title:'CHAMPIONS',    line:'Champions, and not close. The parade is booked.' },
-    { wins:29,           title:'TITLE RACE',   line:'In it to the final day, and that is worth something.' },
+    { wins:36,           title:'RECORD BREAKERS', line:'A points total that rewrites the record books.' },
+    { wins:34,           title:'CHAMPIONS',    line:'Champions, and not close. The parade is booked.' },
+    { wins:30,           title:'TITLE RACE',   line:'In it to the final day, and that is worth something.' },
     { wins:25,           title:'EUROPE',       line:'Champions League football. Nobody is unhappy.' },
     { wins:17,           title:'MID-TABLE',    line:'Safe by March. Forgotten by June.' },
     { wins:8,            title:'SURVIVAL',     line:'Ugly, nervous, survived. Just.' },
@@ -3819,9 +3860,12 @@ function testSim(){
      The band below is the retuned one — see PROGRESS.md. The floor moved from
      8 to 5 when the run-in was hardened: a random seven now takes about 7, and
      the point of the check is that careless drafting is punished, not that it
-     is punished by exactly the amount it was before. */
+     is punished by exactly the amount it was before. It moved again, 5 -> 2,
+     when STEEP went to 0.48: a sharper response is precisely what makes a good
+     draft beat a poor one, and the same sharpness drives careless sides
+     further down. That is the mechanism working, not a regression. */
   check('SIM: a median random-but-sensible team is a relegation scrap',
-    hFit.median >= 5 && hFit.median <= 16, 'median = ' + hFit.median);
+    hFit.median >= 2 && hFit.median <= 16, 'median = ' + hFit.median);
   check('SIM: 38-0 is out of reach for a random team',
     hFit.perfectPct <= 0.5, hFit.perfectPct + '% went 38-0');
   check('SIM: a lucky random team can still have a real season',
@@ -3842,13 +3886,17 @@ function testSim(){
   check('SIM: a well-drafted side is usually denied by draws, not defeats',
     hSmart.unbeatenPct > hSmart.perfectPct * 1.5,
     hSmart.unbeatenPct + '% unbeaten vs ' + hSmart.perfectPct + '% perfect');
-  /* This cap is the one that was missing. The check above only ever compared
-     unbeaten to perfect, so a run of 12% unbeaten against 3% perfect sailed
-     through it -- an unbeaten season, the thing the whole game is named after,
-     was happening every eighth attempt and nothing complained. The absolute
-     rate is what players feel, so it needs a ceiling of its own. */
+  /* This cap exists because the check above only ever compared unbeaten to
+     perfect, so 12% unbeaten against 3% perfect once sailed through it.
+     The ceiling was 6%. It is 15% now, and that is a deliberate design
+     decision rather than a slackened test: the brief was for a squad rated
+     88+ to go 38-0 about one time in five, and with bands only two rating
+     points apart there is no way to lift the top of the ladder that far
+     without the rungs below it coming up too. Unbeaten seasons are the
+     price of a reachable perfect one. If 38-0 is ever retargeted downward,
+     bring this back down with it. */
   check('SIM: going a whole season unbeaten stays rare',
-    hSmart.unbeatenPct <= 6,
+    hSmart.unbeatenPct <= 15,
     hSmart.unbeatenPct + '% of well-drafted sides lost nothing all season');
   /* The report measures every side against REPORT.BENCHMARK. If nothing can
      reach it, the report tells a player who just won 36 matches that their
@@ -3914,6 +3962,8 @@ const GAME = {
   usedCells: null,
   usedClubs: null,
   clubDraws: null,
+  wheels: null,          // three-wheel mode: { club, era, position }
+  combos: null,          // three-wheel mode: pairings still available
   usedNames: null,
   lineup: {},
   picks: [],
@@ -3957,6 +4007,8 @@ function newGame(mode){
   GAME.usedCells = new Set();
   GAME.usedClubs = new Set();
   GAME.clubDraws = new Map();
+  GAME.wheels = null;
+  GAME.combos = { 'club+era':2, 'club+pos':2, 'era+pos':2 };
   GAME.usedNames = new Set();
   GAME.lineup = {};
   GAME.picks = [];
@@ -3995,6 +4047,134 @@ function cellWeight(c){
 }
 
 function spinCell(){ return rngPickWeighted(GAME.rnd, availableCells(), cellWeight); }
+
+/* ============================================================================
+   THREE-WHEEL DRAFT
+   A third reel picks the position, and from round two you choose which two of
+   the three to re-spin. Keeping a wheel is the whole point: hold the club and
+   you go back to the same squad, hold the position and you go again at the
+   line you still need. Each pairing may be spent twice, which is exactly the
+   six rounds that follow the opening one.
+   ============================================================================ */
+
+const COMBOS = [
+  { id:'club+era', spins:['club','era'],      keep:'position', label:'Club + era' },
+  { id:'club+pos', spins:['club','position'], keep:'era',      label:'Club + position' },
+  { id:'era+pos',  spins:['era','position'],  keep:'club',     label:'Era + position' },
+];
+
+/** Positions still worth landing on, weighted by how many slots want them, so
+    a lone goalkeeping slot cannot be drawn once the keeper is signed. */
+function spinPosition(){
+  const open = openSlots();
+  if(!open.length) return null;
+  const roles = [];
+  for(const s of open) roles.push(s.role);
+  return rngPick(GAME.rnd, roles);
+}
+
+/**
+ * Which pairings are legal right now.
+ *
+ * Two rules pull against each other: each pairing may be spent twice, which is
+ * exactly the six rounds after the opening one, and keeping the line is
+ * pointless once no open slot wants it. Enforced naively they deadlock -- more
+ * than half of all drafts used to end a player or two short, because the only
+ * pairings left in budget were ones whose kept wheel had gone stale. Budget
+ * wins: a stale wheel just gets re-spun (see spinWheels), and the draft always
+ * has somewhere to go.
+ */
+function availableCombos(){
+  const open = openSlots();
+  const inBudget = COMBOS.filter(c => GAME.combos[c.id] > 0);
+  const useful = inBudget.filter(c => {
+    if(c.keep === 'position' && GAME.wheels &&
+       !open.some(s => s.role === GAME.wheels.position)) return false;
+    return true;
+  });
+  return useful.length ? useful : inBudget;
+}
+
+/** Spin the two wheels this pairing names, keeping the third. */
+function spinWheels(comboId){
+  const combo = COMBOS.find(c => c.id === comboId) || null;
+  const w = Object.assign({ club:null, era:null, position:null }, GAME.wheels || {});
+  const spins = combo ? combo.spins : ['club','era','position'];
+
+  if(spins.includes('club') || spins.includes('era')){
+    // A fresh cell supplies whichever of club/era is being re-spun.
+    const cell = spinCell();
+    if(spins.includes('club')) w.club = cell.club;
+    if(spins.includes('era'))  w.era  = cell.era;
+  }
+  // Spin the position when this pairing says to, and also when the one we were
+  // told to keep has gone stale -- its line is full, so holding it would offer
+  // a board with nowhere to put anybody.
+  const staleKeep = combo && combo.keep === 'position' &&
+    !openSlots().some(s => s.role === w.position);
+  if(spins.includes('position') || staleKeep || !w.position) w.position = spinPosition();
+
+  GAME.wheels = w;
+  if(combo) GAME.combos[combo.id]--;
+  return w;
+}
+
+/** The cell the three wheels point at, falling back to any cell for that club
+    if the exact club-and-era pairing has nothing left. */
+function cellForWheels(){
+  const w = GAME.wheels;
+  if(!w) return null;
+  return POOL.cells.find(c => c.club === w.club && c.era === w.era)
+      || POOL.cells.find(c => c.club === w.club)
+      || null;
+}
+
+/** The board: that cell's players of the position on the reel. If exclusions
+    have emptied it, the whole cell is offered rather than nothing. */
+function offerForWheels(cell){
+  const all = offerFrom(cell);
+  const w = GAME.wheels;
+  if(!w || !w.position) return all;
+  const fit = all.filter(p => p.position === w.position);
+  return fit.length ? fit : all;
+}
+
+const THREE_WHEELS = () => CONFIG.DRAFT.WHEELS === 'three';
+
+/**
+ * Three-wheel spin. `comboId` is null for the opening round, when there is
+ * nothing to keep and all three wheels turn.
+ */
+function doSpinThree(comboId){
+  if(comboId && !availableCombos().some(c => c.id === comboId)) return;
+
+  const before = GAME.wheels ? Object.assign({}, GAME.wheels) : null;
+  const w = spinWheels(comboId);
+  const cell = cellForWheels();
+  if(!cell){ toast('Nothing left to draft from there.'); return; }
+
+  GAME.cell = cell;
+  GAME.offered = offerForWheels(cell);
+  GAME.phase = 'spinning';
+  render();
+
+  // Only animate the reels that actually turned.
+  const turned = comboId
+    ? (COMBOS.find(c => c.id === comboId) || {}).spins || []
+    : ['club','era','position'];
+  const dur = Math.max(SPIN_MS.club, SPIN_MS.era, SPIN_MS.pos);
+  if(turned.includes('club'))    runReel('reel-club', 'club', w.club, SPIN_MS.club);
+  if(turned.includes('era'))     runReel('reel-era',  'era',  w.era,  SPIN_MS.era);
+  if(turned.includes('position'))runReel('reel-pos',  'pos',  w.position, SPIN_MS.pos);
+  SFX.reelTicks(dur);
+
+  void before;
+  setTimeout(() => {
+    GAME.phase = 'picking';
+    SFX.detent();
+    render();
+  }, REDUCED ? 30 : dur + 120);
+}
 
 /** Re-spin one reel, holding the other. Returns null if nothing else is available. */
 function respinClub(){
@@ -4650,9 +4830,16 @@ function viewTitle(){
       '</div>' +
       '<div class="howto">' +
         '<div class="step"><span class="snum">1</span><span class="stxt">' +
-          'Spin the reels to get a <b>club</b> and a <b>decade</b></span></div>' +
+          (THREE_WHEELS()
+            ? 'Spin two of the three reels &mdash; <b>club</b>, <b>decade</b>, ' +
+              '<b>line</b> &mdash; and keep the third'
+            : 'Spin the reels to get a <b>club</b> and a <b>decade</b>') +
+          '</span></div>' +
         '<div class="step"><span class="snum">2</span><span class="stxt">' +
-          'Pick any player from that squad and choose where they play</span></div>' +
+          (THREE_WHEELS()
+            ? 'Pick any player the reels offer you and choose where they play'
+            : 'Pick any player from that squad and choose where they play') +
+          '</span></div>' +
         '<div class="step"><span class="snum">3</span><span class="stxt">' +
           'Do that ' + squadWord() + ' times, then watch your team play a whole season' +
           '</span></div>' +
@@ -4670,6 +4857,7 @@ function viewTitle(){
         }) +
         modeCardHTML({ act:'new-free', name:'Free draft', desc:'New spins every time' }) +
       '</div>' +
+      wheelSwitchHTML() +
     '</div>' +
   '</div>';
 }
@@ -4712,6 +4900,17 @@ function squadTraitHTML(){
       t.value + '<em>/' + t.min + '</em></span>';
   }).join('');
   return '<div class="squadtraits">' + cells + '</div>';
+}
+
+/** A preview switch while the two draft shapes are being compared. Goes when
+    one of them wins. */
+function wheelSwitchHTML(){
+  const three = THREE_WHEELS();
+  return '<button class="modesw" data-act="wheels" aria-pressed="' + (three?'true':'false') + '">' +
+      '<span class="msw-lab">Draft</span>' +
+      '<span class="msw-val' + (three?' on':'') + '">' +
+        (three ? 'Three reels' : 'Two reels') + '</span>' +
+    '</button>';
 }
 
 /* ============================================================================
@@ -4771,22 +4970,36 @@ function viewDraft(){
   const cell = GAME.cell;
 
   /* --- reels --- */
-  const clubReel = (picking && cell)
-    ? '<div class="reel-track">' + reelItemHTML('club', cell.club) + '</div>'
-    : (spinning ? '<div class="reel-track"></div>' : '<div class="reel-track">' + reelItemHTML('club', null) + '</div>');
-  const eraReel = (picking && cell)
-    ? '<div class="reel-track">' + reelItemHTML('era', cell.era) + '</div>'
-    : (spinning ? '<div class="reel-track"></div>' : '<div class="reel-track">' + reelItemHTML('era', null) + '</div>');
+  // Three-reel mode asks you to choose which two reels to turn, which is only
+  // a decision if you can see what is on them. So between rounds the reels
+  // keep showing what they last landed on, dimmed, instead of resetting to
+  // blank the way the two-reel draft does.
+  const held = THREE_WHEELS() && !spinning && !picking && GAME.wheels ? GAME.wheels : null;
+  const reelSlot = (kind, live, keep) =>
+    (picking && live != null)
+      ? '<div class="reel-track">' + reelItemHTML(kind, live) + '</div>'
+      : spinning ? '<div class="reel-track"></div>'
+      : (held && keep != null)
+        ? '<div class="reel-track held">' + reelItemHTML(kind, keep) + '</div>'
+        : '<div class="reel-track">' + reelItemHTML(kind, null) + '</div>';
+
+  const clubReel = reelSlot('club', cell && cell.club, held && held.club);
+  const eraReel  = reelSlot('era',  cell && cell.era,  held && held.era);
 
   // What this cell is worth beyond its players: a club you have already
   // signed from is where chemistry comes from, and the machine offering it
   // again is the only chance you get to build a block.
   const linkNote = (picking && cell) ? cellLinkHTML(cell) : '';
 
+  const three = THREE_WHEELS();
+  const w = GAME.wheels;
+  const posReel = reelSlot('pos', w && w.position, held && held.position);
+
   const reels =
-    '<div class="reelbay">' +
+    '<div class="reelbay' + (three ? ' reelbay--three' : '') + '">' +
       '<div class="reel' + (picking?' locked':'') + '" id="reel-club"><span class="reel-cap">Club</span>' + clubReel + '</div>' +
       '<div class="reel' + (picking?' locked':'') + '" id="reel-era"><span class="reel-cap">Era</span>' + eraReel + '</div>' +
+      (three ? '<div class="reel' + (picking?' locked':'') + '" id="reel-pos"><span class="reel-cap">Line</span>' + posReel + '</div>' : '') +
     '</div>' + linkNote +
     '<p class="sr-only" role="status" aria-live="polite">' +
       (picking && cell ? esc(cell.club) + ', ' + esc(cell.era) + '. ' + GAME.offered.length + ' players offered.'
@@ -4798,10 +5011,10 @@ function viewDraft(){
   if(picking && cell){
     const shown = visibleOffered();
     body =
-      skipsHTML() +
+      (three ? '' : skipsHTML()) +
       squadTraitHTML() +
       '<div class="sechead"><h2>Take one</h2></div>' +
-      filterBarHTML() +
+      (three ? '' : filterBarHTML()) +
       (shown.length
         ? '<div class="pool">' + shown.map(o => playerCardHTML(o.p, o.i, o.n)).join('') + '</div>'
         : '<p class="note" style="padding:18px 2px">No ' + GAME.posFilter +
@@ -4818,9 +5031,11 @@ function viewDraft(){
       '<div class="lineup" aria-label="Your lineup">' + CONFIG.FORMATION.map(slotMiniHTML).join('') + '</div>' +
       (picking ? '' : spinning
         ? '<button class="btn btn--busy" style="margin-top:10px" disabled>Spinning&hellip;</button>'
-        : '<button class="btn btn--primary" style="margin-top:10px" data-act="spin">' +
-            'Spin &middot; round ' + (GAME.round+1) + ' of ' + CONFIG.DRAFT.ROUNDS +
-          '</button>') +
+        : (three && GAME.wheels)
+          ? comboButtonsHTML()
+          : '<button class="btn btn--primary" style="margin-top:10px" data-act="spin">' +
+              'Spin &middot; round ' + (GAME.round+1) + ' of ' + CONFIG.DRAFT.ROUNDS +
+            '</button>') +
     '</div>';
 
   return '<div class="shell">' + topbarHTML({}) +
@@ -4831,6 +5046,10 @@ function viewDraft(){
 }
 
 function reelItemHTML(kind, value){
+  if(kind === 'pos'){
+    if(!value) return '<div class="reel-item"><div class="rera faint">&mdash;&mdash;</div></div>';
+    return '<div class="reel-item"><div class="rera">' + esc(value) + '</div></div>';
+  }
   if(kind === 'club'){
     if(!value) return '<div class="reel-item"><div class="rname faint">&mdash;&mdash;&mdash;</div></div>';
     return '<div class="reel-item">' + crestSVG(value, 32) + '<div class="rname">' + esc(value) + '</div></div>';
@@ -4870,6 +5089,28 @@ function filterBarHTML(){
         '<span class="chipn">' + n + '</span>' +
       '</button>';
     }).join('') + '</div>';
+}
+
+/** From round two you choose which two wheels turn. Each pairing twice, which
+    is exactly the six rounds left, so the budget spends itself if you let it. */
+function comboButtonsHTML(){
+  const avail = availableCombos();
+  return '<div class="combos">' +
+    '<p class="combocap">Spin two, keep one</p>' +
+    COMBOS.map(c => {
+      const left = GAME.combos[c.id];
+      const on = avail.some(a => a.id === c.id);
+      const kept = c.keep === 'position' ? (GAME.wheels ? GAME.wheels.position : 'line')
+                 : c.keep === 'era'      ? (GAME.wheels ? GAME.wheels.era : 'era')
+                 : (GAME.wheels ? GAME.wheels.club : 'club');
+      return '<button class="btn btn--ghost btn--sm combobtn" data-act="combo" data-combo="' + c.id + '"' +
+        (on ? '' : ' disabled') + '>' +
+        '<span class="cb-main">' + esc(c.label) + '</span>' +
+        '<span class="cb-keep">keeps ' + esc(String(kept)) + '</span>' +
+        '<span class="skipct">' + left + '</span>' +
+      '</button>';
+    }).join('') +
+  '</div>';
 }
 
 function skipsHTML(){
@@ -5242,10 +5483,12 @@ function countUp(el, to, delay){
 }
 
 /* ---- The slot machine ---------------------------------------------------- */
-const SPIN_MS = { club: 1500, era: 1850 };
+const SPIN_MS = { club: 1500, era: 1850, pos: 1650 };
 
 function spinFiller(kind, n){
-  const src = kind === 'club' ? POOL.clubs : CONFIG.ERAS;
+  const src = kind === 'club' ? POOL.clubs
+            : kind === 'pos'  ? CONFIG.FORMATION.map(s => s.role)
+            : CONFIG.ERAS;
   const out = [];
   // Cosmetic only — deliberately NOT drawn from the game's seeded stream.
   for(let i=0;i<n;i++) out.push(src[Math.floor(Math.random()*src.length)]);
@@ -5272,6 +5515,8 @@ function runReel(reelId, kind, target, duration){
 
 function doSpin(kind){
   if(GAME.phase === 'spinning') return;
+
+  if(THREE_WHEELS()){ doSpinThree(kind); return; }
 
   let cell, spinClub = true, spinEra = true;
   if(kind === 'club'){
@@ -5374,6 +5619,12 @@ function onAction(e){
     case 'quit-no':  GAME.confirmQuit = false; render(); break;
     case 'quit-yes': GAME.confirmQuit = false; GAME.screen = 'title'; render(); break;
 
+    case 'wheels':
+      CONFIG.DRAFT.WHEELS = THREE_WHEELS() ? 'two' : 'three';
+      try{ localStorage.setItem(WHEELS_KEY, CONFIG.DRAFT.WHEELS); }catch(e){}
+      render();
+      break;
+
     case 'sound':
       SFX.on = !SFX.on;
       if(SFX.on){ SFX.init(); SFX.detent(); }
@@ -5381,6 +5632,7 @@ function onAction(e){
       break;
 
     case 'spin':      SFX.init(); doSpin(null);   break;
+    case 'combo':     SFX.init(); doSpin(t.dataset.combo); break;
     case 'skip-club': SFX.init(); doSpin('club'); break;
     case 'skip-era':  SFX.init(); doSpin('era');  break;
 
@@ -5526,9 +5778,23 @@ function esc(s){
 /* ============================================================================
    BOOT
    ============================================================================ */
+const WHEELS_KEY = CONFIG.STORAGE_KEY + '.wheels';
+
 function boot(){
   const params = new URLSearchParams(location.search);
   if(params.get('test') === '1'){ runTests(); return; }
+
+  // The three-wheel draft is behind a flag while both are being played.
+  try{
+    const q = params.get('wheels');
+    if(q === 'two' || q === 'three'){
+      CONFIG.DRAFT.WHEELS = q;
+      localStorage.setItem(WHEELS_KEY, q);
+    } else {
+      const pref = localStorage.getItem(WHEELS_KEY);
+      if(pref === 'two' || pref === 'three') CONFIG.DRAFT.WHEELS = pref;
+    }
+  }catch(e){}
 
   // Sound preference is a convenience, never a hard dependency.
   try{
