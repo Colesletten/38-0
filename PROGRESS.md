@@ -64,10 +64,10 @@ changes fixed it:
 
 | how you draft | p10 | median | p90 | 38-0 | unbeaten |
 |---|---:|---:|---:|---:|---:|
-| random players, random slots | 0 | 2 | 7 | 0% | 0% |
-| random players, sensible slots | 2 | 7 | 19 | 0% | 0% |
-| best available, best slot | 23 | **30** | 35 | **0.67%** | 3.6% |
-| pool's theoretical best seven | — | 37 | — | — | — |
+| random players, random slots | 0 | 1 | 5 | 0% | 0% |
+| random players, sensible slots | 1 | 7 | 18 | 0% | 0% |
+| best available, best slot | 25 | **30** | 35 | **0.51%** | 2.9% |
+| the pool's theoretical best seven | — | 37 | — | — | — |
 
 *(Figures above are the current ones. The `unbeaten` column carried the 38-0
 value for a long stretch because a scratchpad script computed it wrongly, which
@@ -572,3 +572,64 @@ real league with every opponent met twice, that at least three of the ten
 hardest fixtures fall in the first half, that a good squad meets a real test
 before matchday 13, and that the run-in still tightens but by less than twelve
 rating points.
+
+
+### 14. The harness was not playing the game
+
+Reported from play: "it does not seem possible to get an 88 squad", against a
+tier table that said 5.8% of squads reach 88+.
+
+The player was right. `smartLineup` and `randomLineup` -- the samplers every
+balance figure in this file came from -- did not draft the way the game does.
+They picked cells with `rngPick(rnd, POOL.cells)`, uniformly across all 56,
+never calling `spinCell`. So no `REPEAT_DECAY`. And they never removed
+already-signed players from the offer, so a squad could in principle carry the
+same player twice.
+
+The effect was consistent and one-directional:
+
+| | harness said | real loop |
+|---|---|---|
+| 38-0 | 1 in 156 | **1 in 347** |
+| unbeaten | 1 in 29 | **1 in 51** |
+| squads reaching 88+ | 5.8% | **3.1%** |
+| median squad rating | 81.4 | 80.0 |
+
+About twice as generous as the game, so every tuning pass since the samplers
+were written was aimed at something nobody was playing.
+
+Both now go through `draftThroughLoop`, which runs the genuine
+`spinCell` / `offerFrom` / `assignPending` sequence and borrows the global
+`GAME` because that is what those functions read, restoring it afterwards so
+sampling has no side effects. Verified: 6.29 distinct clubs per sampled side
+against 6.3 measured in real play, zero duplicate players, zero incomplete
+lineups, `GAME` untouched.
+
+Three tests now guard it: complete and duplicate-free sides, fewer distinct
+clubs per squad than there are slots (which only the weighted spin produces),
+and the live game unchanged by sampling.
+
+**Corrected figures, 25,000 games through the real loop.** Note these use the
+harness's role-normalised picking, which is a shade sharper than picking on
+raw rating, so they sit slightly above a plain greedy player:
+
+- champion or better: 1 in 4
+- unbeaten: 1 in 34
+- 38-0: 1 in 195
+- squad rating: median 81.2, p90 86.1, p99 91.2
+- drafts reaching 84+: 22.1%, 86+: 10.5%, 88+: 4.5%
+
+| squad rating | champion+ | unbeaten | 38-0 |
+|---|---|---|---|
+| under 80 | 1 in 20 | 1 in 788 | never |
+| 80-81 | 1 in 6 | 1 in 140 | 1 in 6,146 |
+| 82-83 | 1 in 3 | 1 in 51 | 1 in 1,165 |
+| 84-85 | 1 in 2 | 1 in 19 | 1 in 321 |
+| 86-87 | 1 in 2 | 1 in 9 | 1 in 58 |
+| 88+ | 1 in 1 | 1 in 4 | 1 in 13 |
+
+The open question this leaves, which is the next thing to work on: reaching 88+
+is 4.5% of drafts and picking better barely moves it -- an optimiser that
+maximises squad rating every round reaches 88+ *less* often than plain greedy.
+The ceiling is the spins, not the player's judgement, which is the opposite of
+what the game is supposed to reward.

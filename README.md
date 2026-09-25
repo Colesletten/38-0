@@ -99,9 +99,9 @@ Tuned so that:
 
 | how you draft | p10 | median | p90 | 38-0 | unbeaten |
 |---|---:|---:|---:|---:|---:|
-| random players, random slots | 0 | 2 | 7 | 0% | 0% |
-| random players, sensible slots | 2 | 7 | 19 | 0% | 0% |
-| best available, best slot | 23 | **30** | 35 | **0.67%** | 3.6% |
+| random players, random slots | 0 | 1 | 5 | 0% | 0% |
+| random players, sensible slots | 1 | 7 | 18 | 0% | 0% |
+| best available, best slot | 25 | **30** | 35 | **0.51%** | 2.9% |
 | the pool's theoretical best seven | — | 37 | — | — | — |
 
 A well-drafted side is usually denied by draws rather than defeats. Squad rating

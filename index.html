@@ -3384,28 +3384,15 @@ function verdictFor(r){
      'best'   the strongest legal team the whole pool can produce
    --------------------------------------------------------------------------- */
 function randomLineup(rnd, blind){
-  const slots = CONFIG.FORMATION.map(s => s.id);
-  const open = blind ? rngShuffle(rnd, slots) : slots.slice();
-  const lineup = {};
-  const byRole = {};
-  for(const s of CONFIG.FORMATION) (byRole[s.role] ||= []).push(s.id);
-
-  for(let r=0;r<CONFIG.DRAFT.ROUNDS;r++){
-    const cell = rngPick(rnd, POOL.cells);
-    const p = rngPick(rnd, cell.players);
-    let target;
-    if(blind){
-      target = open.shift();
-    }else{
-      // Prefer an open slot this player actually fits, else anything open.
-      const natural = (byRole[p.position] || []).filter(id => !lineup[id]);
-      const anyOpen = slots.filter(id => !lineup[id]);
-      target = natural.length ? natural[0] : anyOpen[0];
-    }
-    if(target) lineup[target] = p;
-  }
-  return lineup;
+  return draftThroughLoop(rnd, (offered, slots) => {
+    const p = rngPick(rnd, offered);
+    if(blind) return { player:p, slotId: rngPick(rnd, slots).id };
+    // Prefer an open slot this player actually fits, else anything open.
+    const natural = slots.filter(s => s.role === p.position);
+    return { player:p, slotId: (natural.length ? natural[0] : slots[0]).id };
+  });
 }
+
 
 /** Best score any player in the pool can post in a given slot — used to make
     scores comparable across roles, so a world-class keeper reads as valuable as
@@ -3429,24 +3416,56 @@ function roleNorm(role){
 
 /** How a player who is paying attention drafts: from each offered pool, take
     the (player, open slot) pairing that adds the most, normalised by role. */
+/**
+ * Draft a side through the REAL loop -- spinCell, offerFrom, assignPending --
+ * so a measured squad is one a player could actually have drafted.
+ *
+ * This used to be faked: the sampler picked cells uniformly from POOL.cells,
+ * ignored REPEAT_DECAY, and never removed already-signed players from the
+ * offer. It was about twice as generous as the game. Every balance figure
+ * taken from it was wrong in the same direction -- 38-0 read as 1 in 156 when
+ * the real rate was 1 in 347 -- so the tuning was aimed at a game nobody was
+ * playing. Measure the thing itself.
+ *
+ * It borrows the global GAME because that is what the real functions read, and
+ * puts it back afterwards so callers see no side effects.
+ */
+function draftThroughLoop(rnd, choose){
+  const saved = Object.assign({}, GAME);
+  try{
+    newGame('free');
+    GAME.rnd = rnd;                       // deterministic for the caller
+    let guard = 0;
+    while(GAME.screen === 'draft' && guard++ < CONFIG.DRAFT.ROUNDS + 5){
+      GAME.cell = spinCell();
+      GAME.offered = offerFrom(GAME.cell);
+      const slots = openSlots();
+      if(!GAME.offered.length || !slots.length) break;
+      const pick = choose(GAME.offered, slots);
+      if(!pick) break;
+      GAME.pending = pick.player;
+      assignPending(pick.slotId);
+    }
+    return Object.assign({}, GAME.lineup);
+  } finally {
+    Object.assign(GAME, saved);
+  }
+}
+
+/** Someone drafting well: the best player on the board for an open slot. */
 function smartLineup(rnd){
-  const lineup = {};
-  for(let r=0;r<CONFIG.DRAFT.ROUNDS;r++){
-    const cell = rngPick(rnd, POOL.cells);
-    const cap = CONFIG.DRAFT.POOL_SHOWN;
-    const offered = cap > 0 ? rngShuffle(rnd, cell.players).slice(0, cap) : cell.players;
-    let pick = null, pickSlot = null, bestVal = -1;
+  return draftThroughLoop(rnd, (offered, slots) => {
+    let best = null, bestVal = -1;
     for(const p of offered){
-      for(const slot of CONFIG.FORMATION){
-        if(lineup[slot.id]) continue;
-        const raw = phaseScore(effectiveRatings(p, slot.role), CONFIG.PHASE[slot.role]) * fitFor(slot.role, p.position);
+      for(const slot of slots){
+        const raw = phaseScore(effectiveRatings(p, slot.role), CONFIG.PHASE[slot.role]) *
+                    fitFor(slot.role, p.position);
         const val = raw / roleNorm(slot.role);
-        if(val > bestVal){ bestVal = val; pick = p; pickSlot = slot.id; }
+        if(val > bestVal){ bestVal = val; best = { player:p, slotId:slot.id }; }
       }
     }
-    if(pick) lineup[pickSlot] = pick;
-  }
-  return lineup;
+    return best;
+  });
 }
 
 function bestPossibleLineup(){
@@ -3653,6 +3672,43 @@ function testSim(){
     nd.analysis.gates.some(g => g.phase === 'defense' && g.failing) && nd.wins < 38,
     'went ' + nd.wins + '-' + nd.draws + '-' + nd.losses +
     ' (defence ' + nd.analysis.phases.defense.toFixed(1) + ')');
+
+  /* Every balance figure in this harness comes from sampled squads, so the
+     sampler has to draft the way the game does. It did not: it picked cells
+     uniformly from POOL.cells, ignored REPEAT_DECAY, and never removed
+     already-signed players from the offer, which made it about twice as
+     generous as the real thing -- 38-0 measured 1 in 156 against a true 1 in
+     347. Months of tuning were aimed at a game nobody was playing. These
+     guard the properties only the real loop can produce. */
+  (() => {
+    let dupes = 0, incomplete = 0, clubs = 0;
+    const N = 300;
+    for(let k = 0; k < N; k++){
+      const lu = smartLineup(mulberry32(31000 + k));
+      const ps = CONFIG.FORMATION.map(sl => lu[sl.id]);
+      if(ps.some(p => !p)) incomplete++;
+      const names = new Set(ps.filter(Boolean).map(p => p.name));
+      if(names.size !== ps.filter(Boolean).length) dupes++;
+      clubs += new Set(ps.filter(Boolean).map(p => p.club)).size;
+    }
+    check('HARNESS: the sampler drafts complete, duplicate-free sides',
+      dupes === 0 && incomplete === 0,
+      dupes + ' with a repeated player, ' + incomplete + ' short of a full side');
+    // The fake sampler drew cells uniformly; the real loop weights by
+    // REPEAT_DECAY, which shows up as fewer distinct clubs per squad.
+    check('HARNESS: the sampler spins like the game, repeats and all',
+      clubs / N < CONFIG.FORMATION.length - 0.3,
+      (clubs / N).toFixed(2) + ' distinct clubs per side, of ' + CONFIG.FORMATION.length);
+  })();
+
+  (() => {
+    // Sampling must not leave the player's own game half-drafted.
+    const before = GAME.screen + '|' + GAME.round + '|' + GAME.picks.length;
+    smartLineup(mulberry32(1)); randomLineup(mulberry32(2), false);
+    check('HARNESS: sampling leaves the live game untouched',
+      GAME.screen + '|' + GAME.round + '|' + GAME.picks.length === before,
+      'was ' + before + ', now ' + GAME.screen + '|' + GAME.round + '|' + GAME.picks.length);
+  })();
 
   /* The fixture list replaced a smooth ramp, and these guard what it was for.
      The ramp made 29 of 38 matches formalities and put 81% of all dropped
