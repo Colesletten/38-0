@@ -10,7 +10,7 @@ All six milestones from the original brief are done, plus a second round of
 changes from playtest feedback.
 
 **104/104 self-checks green.** Verified in Chromium at 320×568, 360×640,
-390×844 and 1440×900, in both draft modes, with `prefers-reduced-motion`, and
+390×844 and 1440×900, with `prefers-reduced-motion`, and
 opened directly from `file://`. A Playwright network audit confirms the page
 still makes exactly **one** HTTP request: the document itself.
 
@@ -677,45 +677,77 @@ Three consequences, each a deliberate decision rather than a side effect:
 - **The random-team floor went 5 wins -> 2.** A steeper curve punishes a bad
   draft harder, which is the point.
 
-#### The third reel
+#### The third reel, built and rejected
 
-`CONFIG.DRAFT.WHEELS` is `'two'` or `'three'`, switched from the title screen or
-forced with `?wheels=two|three`. Three pairings — club+era, club+position,
-era+position — each usable exactly twice, which is six uses across seven rounds
-(round one spins all three).
+Built behind `CONFIG.DRAFT.WHEELS`: a line wheel alongside club and era, three
+pairings usable twice each, choose which two to turn and hold the third.
+Played for an evening and cut. It is recorded here because the measurements are
+the reason, and because the same idea will come back.
 
-The bug worth recording: **3,500 of 6,000 test drafts ended with an incomplete
+One bug worth keeping: **3,500 of 6,000 test drafts ended with an incomplete
 lineup.** Two rules were in conflict. "Each pairing exactly twice" says which
 pairings you may still use; "you cannot hold a line you have already filled"
 says which are legal. Late in a draft the remaining budget was routinely all
-dead pairings, and the round simply refused. `availableCombos` now lets budget
-win — it filters to pairings you can still afford, prefers the ones whose held
-wheel is still live, and falls back to the affordable set — and `spinWheels`
-re-spins a held position wheel that has gone stale. Zero incomplete drafts
-since.
+dead pairings, and the round simply refused. Letting budget win -- re-spinning
+a held wheel that had gone stale rather than refusing the round -- fixed it.
+Any future "choose which wheels to turn" mechanic will hit the same collision.
 
-Verified in Chromium at 320x568, 360x640, 390x844 and 1440x900, with
-`prefers-reduced-motion`, in both modes: seven rounds completed, all six
-pairings used exactly twice, no console errors, no horizontal overflow, dock on
-screen, and the network audit still reads exactly one request per mode.
-
-#### Three reels is easier, and is left that way
-
-The ladder above is a property of the season, so it is identical in both modes.
-What changes is how often you reach each rung, and a position wheel that only
-lands on a line you still need is a large gift:
+The reason it did not survive contact is that it is a much easier game, and the
+numbers say why. A line wheel that only ever lands on a slot you still need
+means every offer is usable:
 
 | 25,000 drafts each | two reels | three reels |
 |---|---:|---:|
 | median squad rating | 81.3 | 85.0 |
-| p90 squad rating | 86.2 | 90.0 |
 | reaching 88+ | 4.7% | 21.9% |
 | unbeaten | 1 in 8 | 1 in 3 |
 | 38-0 | 1 in 50 | 1 in 15 |
 
-It is shipped unretuned on purpose: retuning it now would mean comparing two
-different games rather than two draft mechanics. If three reels is the keeper,
-the correction belongs in the line wheel's scarcity — letting it land on lines
-you have already filled, so a held line can be a liability — and not in the
-opponents, because moving the opponents would break the 1-in-5 that the whole
-rescale was for.
+The per-rating ladder was identical in both, because it is a property of the
+season, not the draft. If the idea returns, the lever is the line wheel's
+scarcity -- letting it land on lines you have already filled, so a held line
+can be a liability -- and not the opponents, because moving those would break
+the 1-in-5 the rescale was for.
+
+---
+
+### 16. The daily draft is not dealing you the same clubs
+
+Reported from play: the daily draft seems to hand out similar clubs every time,
+while the free draft feels more varied. Worth checking, because a daily seeded
+from a date is exactly the kind of thing that goes subtly wrong.
+
+It has not. Both modes draft from the same weighted spin; the only difference is
+where the seed comes from. Over 700 drafts each:
+
+| | daily (700 consecutive dates) | free (700 random keys) |
+|---|---:|---:|
+| distinct round-1 clubs seen | 31 of 31 | 31 of 31 |
+| round-1 chi-square vs uniform (df=30) | 139.7 | 127.2 |
+| distinct clubs per 7-round draft | 6.30 | 6.28 |
+| clubs shared with the previous draft | 1.53 | 1.54 |
+
+Statistically the same game. `hashString` already ends in an avalanche
+specifically so neighbouring dates land far apart, and the measurement confirms
+it works.
+
+Two things are true underneath the report, though, and both are real:
+
+**The reels genuinely favour big clubs, in both modes.** A club is dealt per
+*cell*, not per club, and only ten clubs field a squad in all three eras:
+
+| cells | clubs | share of any one spin |
+|---|---|---|
+| 3 | Arsenal, Man Utd, Chelsea, Liverpool, Man City, Tottenham, Newcastle, Everton, Aston Villa, West Ham | 54% between them |
+| 2 | Leicester, Fulham, Sunderland, Southampton, Crystal Palace | 18% |
+| 1 | the other 16 | 29% |
+
+So 3.7 of your seven clubs come from those ten, every draft, in either mode.
+That is the "same clubs again" feeling, and it is a property of who was in the
+division for twenty-five years rather than a bug. Flattening it means weighting
+the spin per club instead of per cell, which makes drafts harder on average,
+because the one-era clubs are the weak pools. Left alone deliberately; noted
+here as the lever if it ever needs pulling.
+
+**One daily a day is one hand a day.** Replaying the daily repeats it, by
+design. The variety in the free draft is partly just playing more of them.

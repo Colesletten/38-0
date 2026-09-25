@@ -38,17 +38,6 @@ A club that has already come up is weighted down rather than banned, so the
 reels mostly tour the league but will hand you the same badge twice — which is
 the only way a chemistry block can exist at all.
 
-The title screen also carries a **Draft** switch with two ways to spin:
-
-- **Two reels** — club and era. One skip each, and a filter bar for the line you
-  want. This is the original game.
-- **Three reels** — club, era and line. Each round you choose which *two* to
-  turn and which one to hold, and you can use each of the three pairings exactly
-  twice across the seven rounds. There are no skips and no filter bar, because
-  the line wheel already is one.
-
-The choice is remembered, and `?wheels=two` / `?wheels=three` forces it.
-
 - **Copy result** — puts a shareable emoji season grid on your clipboard.
 
 The results screen is a report, not a scoreboard: what the seven were *worth*
@@ -128,11 +117,9 @@ And that the draft, not the season, is what decides it:
 | 86-87 | 1 in 1 | 1 in 2 | 1 in 12 |
 | 88+ | 1 in 1 | 1 in 2 | **1 in 5** |
 
-A well-drafted side is usually denied by draws rather than defeats. That ladder
-is a property of the season, so it holds identically in both draft modes; what
-the modes change is how often you reach each rung. Every tuning constant lives
-in one labelled `CONFIG` block at the top of the script. Move a number, reload,
-re-run the histogram.
+A well-drafted side is usually denied by draws rather than defeats. Every tuning
+constant lives in one labelled `CONFIG` block at the top of the script. Move a
+number, reload, re-run the histogram.
 
 ## Data honesty
 
@@ -226,41 +213,6 @@ The six fixtures against title rivals are also what separates an unbeaten
 season from a perfect one. Winning all six compounds, so a small edge in squad
 quality becomes a large edge in the odds — which is the difference between
 being good and being untouchable.
-
-## Two reels or three
-
-The two-reel draft deals you a club and an era and asks which of those twenty
-players you want. Everything you can do about a bad hand is defensive: one club
-skip, one era skip, and a filter to find the line you still need.
-
-The three-reel draft adds a **line** wheel and inverts that. Each round you pick
-which *two* of the three to turn — club + era, club + line, or era + line — and
-the third holds what it landed on last time. Each pairing is available exactly
-twice, so the seven rounds spend all six uses and the shape of your draft is a
-sequence of decisions rather than a sequence of reactions. Between rounds the
-reels stay lit, dimmed, showing what you are holding; without that the choice is
-blind.
-
-The rule that each pairing may be used twice can collide with the rule that
-holding a line you have already filled is illegal. Budget wins: when the only
-affordable pairings would hold a dead line, the draft re-spins that wheel rather
-than refusing the round. Losing that argument deadlocked 3,500 of 6,000 test
-drafts before it was settled.
-
-It is markedly the easier mode, and deliberately unretuned so the two can be
-compared as they are. A line wheel that only ever lands on a slot you still need
-means every offer is usable, so squads come out much stronger:
-
-| | two reels | three reels |
-|---|---:|---:|
-| median squad rating | 81.3 | **85.0** |
-| drafts reaching 88+ | 4.7% | **21.9%** |
-| unbeaten | 1 in 8 | 1 in 3 |
-| 38-0 | 1 in 50 | 1 in 15 |
-
-The per-rating ladder is unchanged — 88+ still goes 38-0 one time in five — so
-three reels is not a softer season, it is a more generous draft. If it is the
-one worth keeping, the lever is the line wheel's scarcity, not the opponents.
 
 ## Squad traits
 
