@@ -185,6 +185,24 @@ The clubs are deliberately not all giants. Charlton and Birmingham field a best
 seven around 75 where Liverpool field 90, so the reels can deal a genuinely
 poor hand -- which is what gives the two skips something to protect you from.
 
+## The fixture list
+
+The season is a league, not a difficulty ramp. Nineteen opponents across four
+tiers — a few title rivals, a chasing pack, a mid-table and some strugglers —
+each met home and away, away three points harder, shuffled from a fixed seed so
+everyone plays the same season in the same order.
+
+It used to be a smooth climb, which meant an 85-rated side was not even 10%
+likely to drop a match until matchday 30 and four fifths of all dropped points
+came in the last twelve. Now the hard games fall where they fall: the first
+real test lands around matchday 3, and the run-in accounts for 43% of dropped
+points rather than 81%.
+
+The six fixtures against title rivals are also what separates an unbeaten
+season from a perfect one. Winning all six compounds, so a small edge in squad
+quality becomes a large edge in the odds — which is the difference between
+being good and being untouchable.
+
 ## Squad traits
 
 Four phase ratings say how good each line is. They do not say what kind of side

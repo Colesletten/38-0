@@ -1019,16 +1019,31 @@ const CONFIG = {
   /* ---- Opponent difficulty curve ----
      38 opponents, getting harder. The last GAUNTLET_FROM matches are the
      title run-in and are brutal by design: 38-0 has to be earned late. ---- */
-  CURVE: {
-    START: 56,              // matchday 1 opponent rating — there are no free
-                            // wins in this division, only easier ones
-    END: 77,                // matchday 38 baseline before the gauntlet
-    SHAPE: 1.25,            // >1 back-loads the difficulty
-    GAUNTLET_FROM: 26,      // 0-indexed matchday where the run-in begins:
-                            // the last twelve are the title run-in
-    GAUNTLET_PEAK: 12,      // extra rating added by the final match
-    GAUNTLET_SHAPE: 1.50,
-    WOBBLE: 2.6,            // deterministic per-fixture variation
+  /* ---- The fixture list ----
+     This used to be a smooth ramp from an easy opening to a brutal run-in, and
+     it made 29 of the 38 matches formalities: an 85-rated squad was not even
+     10% likely to slip until matchday 30, and 81% of all dropped points landed
+     in the last twelve. A season with one act.
+
+     It is a league now. Nineteen opponents, each played home and away, drawn
+     from a shape the Premier League would recognise: a few genuine rivals, a
+     chasing pack, a mid-table, and some strugglers. The order is shuffled from
+     a fixed seed, so every player still plays exactly the same season, but the
+     hard games fall where they fall — week three as readily as week thirty.
+
+     The point is not only realism. Six matches against title rivals compound:
+     small gaps in squad quality turn into large gaps in the odds of winning
+     all six, which is what separates an unbeaten season from a perfect one. */
+  FIXTURES: {
+    TIERS: [
+      { n:3, rating:81, label:'title rivals' },
+      { n:5, rating:71, label:'the chasing pack' },
+      { n:6, rating:61, label:'mid-table' },
+      { n:5, rating:52, label:'strugglers' },
+    ],
+    SPREAD: 2.5,            // per-opponent variation inside a tier
+    AWAY_PENALTY: 3,        // the same side is harder at their place
+    LATE_BIAS: 3,           // the run-in still tightens, but only a little
   },
 
   /* ---- Match resolution ----
@@ -3015,19 +3030,53 @@ function analyseLineup(lineup){
  * can be compared fairly. Rises through the season and then spikes for the
  * run-in.
  */
-function opponentRating(i){
-  const C = CONFIG.CURVE, N = CONFIG.SEASON.MATCHES;
-  const t = N > 1 ? i / (N - 1) : 0;
-  let r = C.START + (C.END - C.START) * Math.pow(t, C.SHAPE);
+let FIXTURES_CACHE = null, FIXTURES_KEY = null;
 
-  if(i >= C.GAUNTLET_FROM){
-    const g = (i - C.GAUNTLET_FROM + 1) / Math.max(1, N - C.GAUNTLET_FROM);
-    r += C.GAUNTLET_PEAK * Math.pow(g, C.GAUNTLET_SHAPE);
+/**
+ * The 38 fixtures, built once and identical for everyone. Nineteen opponents
+ * from the tiers in CONFIG.FIXTURES, each met home and away, then shuffled
+ * from a fixed seed so the hard games are scattered rather than stacked at the
+ * end. Cached against the config so tuning still takes effect.
+ */
+function fixtureList(){
+  const F = CONFIG.FIXTURES;
+  const key = JSON.stringify(F) + '|' + CONFIG.SEASON.MATCHES;
+  if(FIXTURES_CACHE && FIXTURES_KEY === key) return FIXTURES_CACHE;
+
+  const opponents = [];
+  let seed = 0;
+  for(const tier of F.TIERS){
+    for(let k = 0; k < tier.n; k++){
+      const w = (hashString('opponent:' + seed) / 4294967296) - 0.5;
+      opponents.push({ rating: tier.rating + w * 2 * F.SPREAD, tier: tier.label });
+      seed++;
+    }
   }
-  // Deterministic per-fixture variation, keyed only on the matchday so the
-  // season shape is the same for everybody.
-  const w = (hashString('fixture:' + i) / 4294967296) - 0.5;
-  return r + w * 2 * C.WOBBLE;
+
+  const fixtures = [];
+  for(const o of opponents){
+    fixtures.push({ rating: o.rating,                  home: true,  tier: o.tier });
+    fixtures.push({ rating: o.rating + F.AWAY_PENALTY, home: false, tier: o.tier });
+  }
+
+  // Fisher-Yates from a fixed seed: scattered, but the same scatter for all.
+  const rnd = mulberry32(hashString('fixtures:v1'));
+  for(let i = fixtures.length - 1; i > 0; i--){
+    const j = Math.floor(rnd() * (i + 1));
+    const t = fixtures[i]; fixtures[i] = fixtures[j]; fixtures[j] = t;
+  }
+
+  // The title run-in still means something, just far less than it did.
+  const last = Math.max(1, fixtures.length - 1);
+  fixtures.forEach((f, i) => { f.rating += F.LATE_BIAS * (i / last); });
+
+  FIXTURES_CACHE = fixtures; FIXTURES_KEY = key;
+  return fixtures;
+}
+
+function opponentRating(i){
+  const f = fixtureList();
+  return f[Math.min(i, f.length - 1)].rating;
 }
 
 /** The whole 38-match difficulty curve, for the UI and for tuning. */
@@ -3605,11 +3654,41 @@ function testSim(){
     'went ' + nd.wins + '-' + nd.draws + '-' + nd.losses +
     ' (defence ' + nd.analysis.phases.defense.toFixed(1) + ')');
 
-  // The difficulty curve must actually rise, and bite late.
+  /* The fixture list replaced a smooth ramp, and these guard what it was for.
+     The ramp made 29 of 38 matches formalities and put 81% of all dropped
+     points in the last twelve; the tests below fail if that shape creeps back. */
   const curve = difficultyCurve();
-  check('SIM: opponents get harder across the season',
-    mean(curve.slice(28)) > mean(curve.slice(0,10)) + 12,
-    'first 10 avg ' + mean(curve.slice(0,10)).toFixed(1) +
+  const fixtures = fixtureList();
+
+  check('SIM: the season is a real league, every opponent met twice',
+    fixtures.length === CONFIG.SEASON.MATCHES &&
+    fixtures.filter(f => f.home).length === CONFIG.SEASON.MATCHES / 2,
+    fixtures.length + ' fixtures, ' + fixtures.filter(f => f.home).length + ' at home');
+
+  (() => {
+    // The ten hardest fixtures must not all live in the run-in.
+    const order = curve.map((r, i) => ({ r, i })).sort((a, b) => b.r - a.r).slice(0, 10);
+    const early = order.filter(o => o.i < 19).length;
+    check('SIM: the hard games are scattered, not stacked at the end',
+      early >= 3,
+      early + ' of the 10 toughest fixtures fall in the first half' +
+      ' (hardest at matchday ' + (order[0].i + 1) + ')');
+  })();
+
+  (() => {
+    // A strong side should face a real test long before the run-in.
+    const M = CONFIG.MATCH;
+    const pWin = opp => Math.min(M.MAX_WIN_PROB, 1 / (1 + Math.exp(-M.STEEP * (85 - opp))));
+    const firstHard = curve.findIndex(r => pWin(r) < 0.90);
+    check('SIM: a good squad is tested well before the run-in',
+      firstHard >= 0 && firstHard < 13,
+      'first fixture an 85-rated side can realistically drop: matchday ' + (firstHard + 1));
+  })();
+
+  check('SIM: the run-in still tightens, but does not own the season',
+    mean(curve.slice(28)) > mean(curve.slice(0, 10)) &&
+    mean(curve.slice(28)) < mean(curve.slice(0, 10)) + 12,
+    'first 10 avg ' + mean(curve.slice(0, 10)).toFixed(1) +
     ' vs run-in avg ' + mean(curve.slice(28)).toFixed(1));
 
   // Chemistry must do something.

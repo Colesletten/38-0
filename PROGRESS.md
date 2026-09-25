@@ -522,3 +522,53 @@ seasons, one verdict for half the games played; it is now 39% with EUROPE on
 25% and MID-TABLE on 12%. The test that guards this now reads the CHAMPIONS
 line out of `VERDICTS` instead of hard-coding it, so it measures what players
 are actually told.
+
+
+### 13. A league instead of a ramp
+
+Reported from play: "almost all dropped points happen in the run-in", and "a
+lot of undefeated, never 38-0".
+
+Both were the same fault. The opponent curve was a smooth ramp from 56 to 89
+with only +/-2.6 of per-fixture wobble, so for an 85-rated squad the **first
+fixture it was even 10% likely to drop was matchday 30**, and **81% of all
+dropped points landed in the last twelve**. Twenty-nine rehearsals, then a
+nine-match season. And because all the jeopardy sat in a handful of games at
+the end, the difference between unbeaten and perfect came down to a few
+near-coin-flips rather than to squad quality.
+
+`CONFIG.CURVE` is gone. In its place `CONFIG.FIXTURES` builds a league:
+nineteen opponents across four tiers -- 3 title rivals, 5 chasers, 6 mid-table,
+5 strugglers -- each met home and away, away being three points harder, then
+shuffled from a fixed seed so every player still plays the identical season.
+A small late bias keeps the run-in meaningful without letting it own the year.
+
+The shape now, for an 85-rated squad:
+
+| | before | after |
+|---|---|---|
+| share of dropped points in the run-in | 81% | **43%** |
+| fixtures it can realistically drop | 9 | **14** |
+| first such fixture | matchday 30 | **matchday 3** |
+
+And the compounding does what it was meant to. Six matches against title
+rivals turn small gaps in squad quality into large gaps in the odds of winning
+all six:
+
+| squad | 38-0 before | 38-0 after |
+|---|---|---|
+| top 5% | 1 in 15 | **1 in 13** |
+| top 10% | 1 in 25 | **1 in 20** |
+| next 15% | 1 in 250 | **1 in 150** |
+| upper middle | 1 in 1,000 | 1 in 714 |
+| bottom 25% | never | never |
+
+The share of unbeaten seasons that are also perfect rose from 15.5% to 18.5%
+overall, and from 28% to 32% in the top five per cent -- which was the actual
+complaint. Overall: unbeaten 1 in 29, 38-0 1 in 156, median 30.
+
+Four tests replaced the one that asserted a steep ramp: that the season is a
+real league with every opponent met twice, that at least three of the ten
+hardest fixtures fall in the first half, that a good squad meets a real test
+before matchday 13, and that the run-in still tightens but by less than twelve
+rating points.
