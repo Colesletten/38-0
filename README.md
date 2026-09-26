@@ -89,37 +89,61 @@ Four things stop a good squad coasting:
   always happened.
 - **Season fortune.** Drawn once from the lineup's own stream and added to the
   team rating for all 38 matches: the year the ball ran for you, or the year it
-  did not. It is what makes two equally good squads finish differently, and it
-  is reported on the results screen rather than hidden in the engine.
+  did not. It is worth **two** rating points either way, deliberately small. It
+  used to be five, which was wider than the whole 84-to-88 stretch the game is
+  trying to tell apart — a lucky 84 simply *was* an 89 and went perfect about
+  as often. Fortune is the footnote now; the draft is the story.
 - **Category gates.** A phase below its threshold bleeds points from matchday 20
   and hard-caps how many wins the season can produce, surrendered from the
   hardest fixtures backwards. You cannot win the league with a hole in you.
-- **A steep response curve.** `MATCH.STEEP` is what decides how much the draft
-  is worth against the season's luck. It is set so that a squad good enough to
-  rate 88 goes 38-0 about one season in five, and everything below that falls
-  away from there.
+- **A steep response curve.** `MATCH.STEEP` decides how much a rating advantage
+  is worth in a single match. Combined with the small fortune swing, one rating
+  point is worth almost exactly one win across the whole range.
+- **Draws, and who escapes them.** Draws — not defeats — are what stop a very
+  good side going perfect. An 88-rated squad barely loses; it draws four. So
+  above `ELITE_DRAW_FROM` each rating point shaves `ELITE_DRAW_CUT` off the
+  draw chance, and nothing below that line is touched. Cutting draws for
+  everyone instead would hand every decent side the league, which is the exact
+  thing this is here to prevent.
 
-Tuned so that, over 25,000 seasons drafted through the real game loop:
+Tuned so that the rating you draft to, not the season you roll, decides what
+happens. Over 30,000 seasons played through the real game loop:
 
-| how you draft | p10 | median | p90 | unbeaten | 38-0 |
-|---|---:|---:|---:|---:|---:|
-| random players, random slots | 0 | 4 | 19 | 1 in 4,000 | never |
-| best available, best slot | 26 | **32** | 36 | 1 in 8 | **1 in 50** |
+| squad rating | champion or better | unbeaten | 38-0 | median wins |
+|---|---|---|---|---:|
+| 79 | never | never | never | 26 |
+| 80 | 1 in 836 | never | never | 27 |
+| 81 | 1 in 288 | never | never | 28 |
+| 82 | 1 in 52 | 1 in 366 | never | 29 |
+| 83 | 1 in 18 | 1 in 167 | never | 30 |
+| 84 | 1 in 7 | 1 in 57 | never | 31 |
+| 85 | 1 in 4 | 1 in 29 | 1 in 825 | 32 |
+| 86 | 1 in 2 | 1 in 12 | 1 in 255 | 33 |
+| 87 | 1 in 2 | 1 in 8 | 1 in 51 | 34 |
+| 88 | 1 in 1 | 1 in 4 | 1 in 19 | 35 |
+| 89 | 1 in 1 | 1 in 3 | 1 in 7 | 36 |
+| 90 | 1 in 1 | 1 in 2 | 1 in 4 | 37 |
 
-And that the draft, not the season, is what decides it:
-
-| squad rating | champion or better | unbeaten | 38-0 |
-|---|---|---|---|
-| under 80 | 1 in 15 | 1 in 149 | never |
-| 80-81 | 1 in 4 | 1 in 20 | 1 in 1,204 |
-| 82-83 | 1 in 2 | 1 in 7 | 1 in 78 |
-| 84-85 | 1 in 2 | 1 in 4 | 1 in 28 |
-| 86-87 | 1 in 1 | 1 in 2 | 1 in 12 |
-| 88+ | 1 in 1 | 1 in 2 | **1 in 5** |
+One rating point is one win, all the way up. An 81 never wins the league. An 84
+is a title chase with an outside shot and no realistic path to a perfect season.
+An 88 wins it, goes unbeaten one year in four, and goes 38-0 one in nineteen.
+Overall: median 28 wins, unbeaten 2.5%, 38-0 0.86%. A randomly assembled seven
+rates about 57 — what this league's strugglers rate — and takes a median of one
+win.
 
 A well-drafted side is usually denied by draws rather than defeats. Every tuning
 constant lives in one labelled `CONFIG` block at the top of the script. Move a
 number, reload, re-run the histogram.
+
+## The margin
+
+The results screen states what the seven were **Worth** against what they
+**Took**. Worth is computed at the squad's own rating with the season's luck
+taken back out — the same `matchOdds` the season itself ran, at a different
+rating — so the gap between the two figures *is* the luck, plus the dice. The
+fortune bar underneath reports that luck directly, which is why the two now
+read as one sentence: cause, then effect. They agree about nine times in ten,
+and the tenth says "even so".
 
 ## Data honesty
 

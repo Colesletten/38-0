@@ -9,7 +9,7 @@ in [`SPEC.md`](SPEC.md); how to play and how it works is in
 All six milestones from the original brief are done, plus a second round of
 changes from playtest feedback.
 
-**104/104 self-checks green.** Verified in Chromium at 320×568, 360×640,
+**108/108 self-checks green.** Verified in Chromium at 320×568, 360×640,
 390×844 and 1440×900, with `prefers-reduced-motion`, and
 opened directly from `file://`. A Playwright network audit confirms the page
 still makes exactly **one** HTTP request: the document itself.
@@ -751,3 +751,121 @@ here as the lever if it ever needs pulling.
 
 **One daily a day is one hand a day.** Replaying the daily repeats it, by
 design. The variety in the free draft is partly just playing more of them.
+
+---
+
+### 17. The margin panel was reporting the luck twice
+
+Reported from play: "I overperformed my projected wins, but the graph shows me
+in the red and the text says I was even."
+
+Three separate things were wrong, and they compounded.
+
+**The bar and the words were drawn from different numbers.** `fortuneOf` calls
+anything inside |f| < 0.22 an "even break" — the middle 44% of the range. The
+CSS gradient underneath it had its neutral stretch hand-written at 46%-54%, the
+middle 8%. So a marker could sit visibly in the red while the sentence above it
+said the season was even. Measured: **14.3% of seasons**, 573 in 4,000, worst
+case a marker at 39% under the words "an even break".
+
+Both are generated from one table now (`FORTUNE_BANDS`), with the gradient
+built by `fortuneGradient()` from the same thresholds the prose uses. Measured
+again afterwards: 0 disagreements in 4,000.
+
+**"Worth" was a second readout of the luck.** `expWins` summed `pWin` from the
+season's `detail`, and those probabilities were computed at `a.rating + form` —
+the form draw was already inside them. So the number labelled "what this squad
+deserved" moved with the season's fortune: within a single rating band it
+tracked the form draw at **r = 0.972**, swinging 5.6 wins p10-p90 for squads of
+identical quality. A cursed season quietly lowered the bar it was then judged
+against, so the screen told you that you did about right, directly underneath a
+bar saying you had been cursed.
+
+The match maths is now one function, `matchOdds(rating, opp, a, i)`, called
+twice per fixture: once at the rating the season was played at, once at the
+squad's own rating with the luck taken out. `expWins` sums the second. After
+the fix the same correlation is **r = -0.002**, and the gap between Worth and
+Took behaves the way the panel always claimed it did:
+
+| fortune | mean (Took − Worth) |
+|---|---:|
+| Cursed | −1.63 |
+| Unlucky | −0.86 |
+| Even | −0.05 |
+| Favoured | +0.91 |
+| Charmed | +1.65 |
+
+**The two sentences were stacked as rival claims.** Worth is now luck-free, so
+the fortune line is the *cause* and the margin the *effect*; they are printed
+in that order. About one season in ten still has a favoured side dropping
+points anyway, which is honest dice rather than a bug, and those now read "Even
+so, 1.6 wins left on the pitch" instead of asserting two opposite things in a
+row.
+
+Three tests guard all of it: Worth equals the sum of par odds, par does not
+move with the form draw, and the generated gradient's neutral band is the band
+the words call "Even".
+
+---
+
+### 18. Making the rating the story
+
+The brief, in the player's words: an 81 should never win a league; 84-85 should
+be Europe, a title chase, an outside shot at the title, very unlikely to go
+unbeaten and with **no** chance of a perfect season; 87-88 should be winning
+leagues, going undefeated, and maybe going 38-0.
+
+The old ladder was nowhere near that. An 80-81 squad won the league one time in
+four. An 84-85 went 38-0 one time in 28.
+
+**The thing in the way was not the response curve. It was the luck.**
+`FORM_SWING` was 5, meaning a season's fortune moved the team rating by up to
+five points in either direction — *wider than the entire 84-to-88 stretch the
+game is trying to tell apart*. A lucky 84 was, arithmetically, an 89, and went
+perfect about as often as one. No amount of steepening fixes that, because
+steepening amplifies the luck exactly as much as it amplifies the draft.
+
+Four changes, in the order they matter:
+
+1. **`FORM_SWING` 5 → 2.** The draft becomes the story. This one change did
+   more than everything else combined.
+2. **The whole opponent ladder up three points** (rivals 80→83, chasing pack
+   71→75, mid-table 62→66, strugglers 53→57). An 84 now drops points to the
+   chasing pack as well as to the rivals, which is what turns a title into a
+   chase. Raising only the rivals did not work: a side that beats the other 32
+   fixtures still reaches 34 wins.
+3. **`STEEP` 0.48 → 0.55.** A modest nudge; with the luck reined in it no
+   longer has to do the whole job.
+4. **A new knob, `ELITE_DRAW_FROM` / `ELITE_DRAW_CUT` (87 / 0.32).** The top of
+   the ladder was blocked by *draws*, not defeats — an 88-rated side already
+   lost almost nothing, it drew four. Above 87 each rating point now shaves 32%
+   off the draw chance. Cutting draws globally instead was tried and rejected:
+   it lifted 38-0 at the top to 20% but also took an 82-83 squad from a 4%
+   title rate to 27%, which is the opposite of the brief.
+
+30,000 seasons through the real loop:
+
+| rating | champion+ | unbeaten | 38-0 | median wins |
+|---|---|---|---|---:|
+| 80 | 1 in 836 | never | never | 27 |
+| 81 | 1 in 288 | never | never | 28 |
+| 82 | 1 in 52 | 1 in 366 | never | 29 |
+| 83 | 1 in 18 | 1 in 167 | never | 30 |
+| 84 | 1 in 7 | 1 in 57 | never | 31 |
+| 85 | 1 in 4 | 1 in 29 | 1 in 825 | 32 |
+| 86 | 1 in 2 | 1 in 12 | 1 in 255 | 33 |
+| 87 | 1 in 2 | 1 in 8 | 1 in 51 | 34 |
+| 88 | 1 in 1 | 1 in 4 | 1 in 19 | 35 |
+| 89 | 1 in 1 | 1 in 3 | 1 in 7 | 36 |
+
+One rating point, one win, the whole way up. In the 84-85 band, 2 perfect
+seasons in 3,580.
+
+**A test was retired rather than loosened.** "A median random-but-sensible team
+is a relegation scrap" had had its floor lowered three times chasing the same
+moving number (8 → 5 → 2), which is how a check stops guarding anything. A
+random seven rates about 57, which is what this league's strugglers rate, so it
+*should* win almost nothing; pinning a number on it only measured how hard the
+season happened to be that week. The floor is gone and the assertions are about
+shape instead — a careless side is a relegation side, drafting well is worth a
+landslide, and `FORM_SWING` stays small enough that rating drives the result.

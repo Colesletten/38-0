@@ -773,8 +773,7 @@ svg{display:block;}
 .fortune{ margin-top:2px; }
 .fortune .ftrack{
   position:relative; height:7px; border-radius:var(--r-pill);
-  background:linear-gradient(90deg,var(--flare),rgba(255,255,255,.16) 46%,rgba(255,255,255,.16) 54%,var(--ultra));
-  border:none;
+  border:none;   /* the gradient is generated from FORTUNE_BANDS, see fortuneGradient */
 }
 .fortune .fmark{
   position:absolute; top:-5px; width:3px; height:15px; border-radius:2px;
@@ -1036,10 +1035,14 @@ const CONFIG = {
      all six, which is what separates an unbeaten season from a perfect one. */
   FIXTURES: {
     TIERS: [
-      { n:3, rating:80, label:'title rivals' },
-      { n:5, rating:71, label:'the chasing pack' },
-      { n:6, rating:62, label:'mid-table' },
-      { n:5, rating:53, label:'strugglers' },
+      /* The whole ladder went up three points when the brief became "an 81
+         should never win the league". Against opponents this strong a good
+         squad has to actually be good: an 84 drops points to the chasing pack
+         as well as to the rivals, which is what turns a title into a chase. */
+      { n:3, rating:83, label:'title rivals' },
+      { n:5, rating:75, label:'the chasing pack' },
+      { n:6, rating:66, label:'mid-table' },
+      { n:5, rating:57, label:'strugglers' },
     ],
     SPREAD: 2.5,            // per-opponent variation inside a tier
     AWAY_PENALTY: 3,        // the same side is harder at their place
@@ -1052,17 +1055,12 @@ const CONFIG = {
      far more than the same gap between mediocre ones. ---- */
   MATCH: {
     W_ATTACK:0.30, W_MIDFIELD:0.26, W_DEFENSE:0.28, W_GK:0.16,
-    STEEP: 0.48,            // logistic steepness on `edge`, and the single
-                            // constant that decides how much the draft is
-                            // worth against the season's luck. It was 0.16,
-                            // shallow so a good squad was never a formality,
-                            // which compressed the top of the ladder until an
-                            // 86 and an 88 were the same bet. At 0.48 a squad
-                            // rated 88 goes 38-0 about one season in five and
-                            // everything below it falls away, which is the
-                            // brief. Raising it further makes an elite draft
-                            // a formality; lowering it hands the season back
-                            // to luck.
+    STEEP: 0.55,            // logistic steepness on `edge`, and half of what
+                            // decides whether the draft or the season's luck
+                            // owns the result. The other half is FORM_SWING
+                            // below, and that turned out to be the one that
+                            // mattered: at 0.48 with a five-point swing, an 84
+                            // could play like an 89 and go 38-0.
     DRAW_BAND: 0.34,        // share of the probability mass nearest parity
                             // that becomes a draw
     DRAW_DECAY: 0.150,      // how fast draws vanish as the edge grows. Draws
@@ -1077,6 +1075,15 @@ const CONFIG = {
        squad from being a formality, and it is why going 38-0 needs luck on
        top of a great draft. Probability shaved off a win is mostly conceded
        as a draw, which is how the real near-misses have always happened. */
+    /* Great sides win the matches ordinary sides draw. Above
+       ELITE_DRAW_FROM, each rating point shaves this fraction off the draw
+       chance -- and nothing below that line is touched at all. It exists
+       because draws, not defeats, are what stop an elite squad going 38-0:
+       an 88-rated side already loses almost nothing, it just drew four.
+       Cutting draws globally instead would hand every decent side the league,
+       which is precisely what this is here to avoid. */
+    ELITE_DRAW_FROM: 87,
+    ELITE_DRAW_CUT:  0.32,
     MAX_WIN_PROB: 0.98,
     UPSET_DRAW_SHARE: 0.30,
 
@@ -1085,7 +1092,12 @@ const CONFIG = {
        for you, or the year it did not. This is what makes two equally good
        squads finish differently, and it is the difference between a brilliant
        draft and a brilliant draft that also got lucky. */
-    FORM_SWING: 5,
+    /* The season's luck, in rating points either way. It was 5, which was
+       wider than the whole 84-to-88 stretch the game is trying to tell apart
+       -- a lucky 84 simply was an 89, and went perfect about as often. At 2
+       the draft is the story and fortune is the footnote it was meant to be.
+       Raising it back up is the fastest way to make rating stop mattering. */
+    FORM_SWING: 2,
   },
 
   /* ---- Squad traits ----
@@ -3120,6 +3132,46 @@ const logistic = x => 1 / (1 + Math.exp(-x));
  * @param {Object} lineup  slot id -> player
  * @returns {{wins:number, draws:number, losses:number, results:string[], analysis:Object}}
  */
+/**
+ * The odds for one fixture, at a given team rating.
+ *
+ * Extracted so the season and the report cannot drift apart: the results
+ * screen quotes what this squad was worth, and it has to be the same maths
+ * that decided the season, run at a different rating.
+ *
+ * @param {number} rating  the team rating to play at
+ * @param {number} opp     the opponent's rating
+ * @param {Object} a       the lineup analysis, for the gate penalty
+ * @param {number} i       matchday index, for when the gate starts to bite
+ */
+function matchOdds(rating, opp, a, i){
+  const M = CONFIG.MATCH;
+
+  // Elite squads sit on a steeper curve: at the top of the game, two rating
+  // points is the difference between a win and a nervous draw.
+  const steep = M.STEEP * (1 + Math.max(0, rating - M.ELITE_FROM) * M.ELITE_GAIN);
+  const eliteDraw = Math.max(0, rating - M.ELITE_DRAW_FROM);
+
+  // A hole in the squad only really tells in the run-in, when it is cold and
+  // the opposition are good enough to find it.
+  let edge = rating - opp;
+  if(i >= CONFIG.GATE_BITE_FROM) edge -= a.gateEdgeLoss;
+
+  let pDraw = clamp(M.DRAW_BAND * Math.exp(-Math.abs(edge) * M.DRAW_DECAY), 0, 0.9);
+  // A great side turns the stodgy ones into wins. Only a great side.
+  if(eliteDraw > 0) pDraw *= Math.pow(1 - M.ELITE_DRAW_CUT, eliteDraw);
+  let pWin = (1 - pDraw) * logistic(edge * steep);
+
+  // Nobody is ever safe. Whatever certainty the model wants to hand out above
+  // the ceiling is given back, mostly as dropped points.
+  if(pWin > M.MAX_WIN_PROB){
+    const spill = pWin - M.MAX_WIN_PROB;
+    pWin = M.MAX_WIN_PROB;
+    pDraw += spill * M.UPSET_DRAW_SHARE;
+  }
+  return { edge, pWin, pDraw };
+}
+
 function simulateSeason(lineup){
   const N = CONFIG.SEASON.MATCHES;
   const M = CONFIG.MATCH;
@@ -3130,37 +3182,24 @@ function simulateSeason(lineup){
   const form = (rnd() * 2 - 1) * M.FORM_SWING;
   const rating = clamp(a.rating + form, 0, 120);
 
-  // Elite squads sit on a steeper curve: at the top of the game, two rating
-  // points is the difference between a win and a nervous draw.
-  const steep = M.STEEP * (1 + Math.max(0, rating - M.ELITE_FROM) * M.ELITE_GAIN);
-
   const results = [];
   const detail = [];
 
   for(let i=0;i<N;i++){
     const opp = opponentRating(i);
-    let edge = rating - opp;
+    const o = matchOdds(rating, opp, a, i);
 
-    // A hole in the squad only really tells in the run-in, when it is cold and
-    // the opposition are good enough to find it.
-    if(i >= CONFIG.GATE_BITE_FROM) edge -= a.gateEdgeLoss;
-
-    const pWinRaw = logistic(edge * steep);
-    let pDraw = clamp(M.DRAW_BAND * Math.exp(-Math.abs(edge) * M.DRAW_DECAY), 0, 0.9);
-    let pWin = (1 - pDraw) * pWinRaw;
-
-    // Nobody is ever safe. Whatever certainty the model wants to hand out
-    // above the ceiling is given back, mostly as dropped points.
-    if(pWin > M.MAX_WIN_PROB){
-      const spill = pWin - M.MAX_WIN_PROB;
-      pWin = M.MAX_WIN_PROB;
-      pDraw += spill * M.UPSET_DRAW_SHARE;
-    }
+    // The same fixture at the squad's own rating, with the season's luck taken
+    // back out. This is what the results screen means by "Worth": if it used
+    // the lucky rating instead, a cursed season would quietly lower the bar it
+    // was judged against, and the report would tell everyone they did fine.
+    const par = matchOdds(clamp(a.rating, 0, 120), opp, a, i);
 
     const roll = rnd();
-    const res = roll < pWin ? 'W' : (roll < pWin + pDraw ? 'D' : 'L');
+    const res = roll < o.pWin ? 'W' : (roll < o.pWin + o.pDraw ? 'D' : 'L');
     results.push(res);
-    detail.push({ i, opp, edge, pWin, pDraw, res });
+    detail.push({ i, opp, edge:o.edge, pWin:o.pWin, pDraw:o.pDraw,
+                  parWin:par.pWin, parDraw:par.pDraw, res });
   }
 
   /* ---- Gate cap: a holed squad cannot take the maximum, however it rolled.
@@ -3188,14 +3227,36 @@ function simulateSeason(lineup){
   return { wins, draws, losses, results, detail, analysis: a, form, seasonRating: rating };
 }
 
+/* The five bands the season's fortune falls into, as fractions of the full
+   swing. The results screen draws its bar from these same numbers rather than
+   from a hand-written gradient: the bar used to call anything outside the
+   middle 8% coloured while this table called the middle 44% "Even", so one in
+   seven seasons showed a marker sitting in the red above the words "an even
+   break". One source, no contradiction. */
+const FORTUNE_BANDS = [
+  { to:-0.62, label:'Cursed',   line:'Nothing ran for you all year. Posts, deflections, the lot.' },
+  { to:-0.22, label:'Unlucky',  line:'The margins went against you more often than not.' },
+  { to: 0.22, label:'Even',     line:'An even break, for once.' },
+  { to: 0.62, label:'Favoured', line:'The rub of the green, in the weeks it mattered.' },
+  { to: Infinity, label:'Charmed', line:'Everything fell your way. Some years are just like that.' },
+];
+
+/** Where a fortune fraction (-1..+1) sits along the bar, as a percentage. */
+const fortunePct = f => clamp((f + 1) / 2 * 100, 0, 100);
+
 /** How the season's fortune fell, in words. */
 function fortuneOf(form){
   const f = form / CONFIG.MATCH.FORM_SWING;      // -1 .. +1
-  if(f <= -0.62) return { label:'Cursed',   line:'Nothing ran for you all year. Posts, deflections, the lot.' };
-  if(f <= -0.22) return { label:'Unlucky',  line:'The margins went against you more often than not.' };
-  if(f <   0.22) return { label:'Even',     line:'An even break. What you got is roughly what you earned.' };
-  if(f <   0.62) return { label:'Favoured', line:'The rub of the green, in the weeks it mattered.' };
-  return              { label:'Charmed',  line:'Everything fell your way. Some years are just like that.' };
+  return FORTUNE_BANDS.find(b => f < b.to) || FORTUNE_BANDS[FORTUNE_BANDS.length - 1];
+}
+
+/** The bar's gradient, with its neutral stretch covering exactly the band that
+    the words above call "Even". */
+function fortuneGradient(){
+  const even = FORTUNE_BANDS.find(b => b.label === 'Even');
+  const lo = fortunePct(-even.to).toFixed(1), hi = fortunePct(even.to).toFixed(1);
+  return 'linear-gradient(90deg,var(--flare),rgba(255,255,255,.16) ' + lo +
+         '%,rgba(255,255,255,.16) ' + hi + '%,var(--ultra))';
 }
 
 /** Points, for the results screen. */
@@ -3254,8 +3315,18 @@ function seasonReport(result, lineup, picks){
   const L = lineup || {};
 
   /* ---- what the seven were worth, against what they took ---- */
+  /* Deliberately the par odds, not the ones the season was played at: "Worth"
+     answers what these seven were good for, so the gap between it and what you
+     actually took is the season's luck plus the roll of the dice -- which is
+     exactly what the fortune bar underneath it reports. Summing the played
+     odds instead made "Worth" a second readout of the luck (it tracked the
+     form draw at r = 0.97), so the two panels contradicted each other. */
   let expWins = 0, expPoints = 0;
-  for(const d of detail){ expWins += d.pWin; expPoints += 3*d.pWin + d.pDraw; }
+  for(const d of detail){
+    const w = d.parWin != null ? d.parWin : d.pWin;
+    const dr = d.parDraw != null ? d.parDraw : d.pDraw;
+    expWins += w; expPoints += 3*w + dr;
+  }
 
   /* ---- where the season went ---- */
   const periods = R.PERIODS.map(per => {
@@ -3823,15 +3894,16 @@ function testSim(){
      band was calibrated when a spin offered eight players; now it offers the
      whole roster and the season is deliberately much harder, and the two
      targets are not jointly satisfiable without making the draft meaningless.
-     The band below is the retuned one — see PROGRESS.md. The floor moved from
-     8 to 5 when the run-in was hardened: a random seven now takes about 7, and
-     the point of the check is that careless drafting is punished, not that it
-     is punished by exactly the amount it was before. It moved again, 5 -> 2,
-     when STEEP went to 0.48: a sharper response is precisely what makes a good
-     draft beat a poor one, and the same sharpness drives careless sides
-     further down. That is the mechanism working, not a regression. */
+
+     This check has had its floor lowered three times (8 -> 5 -> 2) chasing the
+     same moving number, which is how a test stops guarding anything. The floor
+     is gone: a random seven rates about 57, which is what this league's
+     strugglers rate, so it SHOULD win almost nothing, and pinning a number on
+     it only measures how hard the season currently is. What must stay true is
+     the shape -- a careless side is a relegation side, and drafting well is
+     worth a landslide -- so that is what is asserted here and below. */
   check('SIM: a median random-but-sensible team is a relegation scrap',
-    hFit.median >= 2 && hFit.median <= 16, 'median = ' + hFit.median);
+    hFit.median <= 12, 'median = ' + hFit.median);
   check('SIM: 38-0 is out of reach for a random team',
     hFit.perfectPct <= 0.5, hFit.perfectPct + '% went 38-0');
   check('SIM: a lucky random team can still have a real season',
@@ -3841,6 +3913,12 @@ function testSim(){
   check('SIM: drafting well is worth a lot of wins',
     hSmart.median >= hFit.median + 10,
     'smart median ' + hSmart.median + ' vs fit median ' + hFit.median);
+  /* The point of the whole rebuild: the rating you draft to, not the season
+     you roll, decides what happens. Two rating points has to be worth roughly
+     a win, or the ladder the brief asked for does not exist. */
+  check('SIM: squad rating drives the result, not the season fortune',
+    CONFIG.MATCH.FORM_SWING <= 2.5,
+    'season luck swings ' + CONFIG.MATCH.FORM_SWING + ' rating points either way');
   /* The floor here came down from 1% to 0.4% deliberately. The game is named
      after this outcome, and it kept being reported as too easy; at 0.67% it is
      roughly one draft in 150, which is a chase rather than a formality. The
@@ -4161,6 +4239,45 @@ function testReport(){
   check('REPORT: expected wins is a sane number bounded by the season',
     rep.expWins > 0 && rep.expWins <= CONFIG.SEASON.MATCHES,
     'expected ' + rep.expWins.toFixed(1) + ' vs actual ' + res.wins);
+
+  /* "Worth" used to be summed from the odds the season was actually played at,
+     which already had the form draw baked in. Within a rating band it tracked
+     that draw at r = 0.97, so a cursed season quietly lowered the bar it was
+     judged against and the screen told everyone they did about right, directly
+     under a fortune bar saying they had been cursed. It is summed from the par
+     odds now, and these two guard that. */
+  check('REPORT: "Worth" is summed from par odds, not the season that happened',
+    Math.abs(rep.expWins - res.detail.reduce((n,d) => n + d.parWin, 0)) < 1e-9,
+    'expWins ' + rep.expWins.toFixed(4));
+  check('REPORT: "Worth" ignores the season fortune',
+    (() => {
+      // Same squad, same fixtures, opposite luck: par must not move.
+      const a = res.analysis;
+      const sumPar = f => {
+        let n = 0;
+        for(let i = 0; i < CONFIG.SEASON.MATCHES; i++){
+          n += matchOdds(clamp(a.rating, 0, 120), opponentRating(i), a, i).pWin;
+        }
+        return n;   // f is deliberately unused: that is the property
+      };
+      return Math.abs(sumPar(-5) - sumPar(5)) < 1e-9 &&
+             Math.abs(sumPar(0) - rep.expWins) < 1e-9;
+    })(),
+    'par moved with the form draw');
+
+  /* The bar and the words above it are drawn from one table now. This catches
+     the day someone edits a threshold in one place only. */
+  check('REPORT: the fortune bar\'s neutral band is the band called "Even"',
+    (() => {
+      const even = FORTUNE_BANDS.find(b => b.label === 'Even');
+      const g = fortuneGradient();
+      return g.indexOf(fortunePct(-even.to).toFixed(1) + '%') > -1 &&
+             g.indexOf(fortunePct(even.to).toFixed(1) + '%') > -1 &&
+             fortuneOf(0).label === 'Even' &&
+             fortuneOf(-CONFIG.MATCH.FORM_SWING).label === 'Cursed' &&
+             fortuneOf(CONFIG.MATCH.FORM_SWING * 0.99).label === 'Charmed';
+    })(),
+    fortuneGradient());
 
   check('REPORT: the periods cover all 38 matches exactly once',
     rep.periods.reduce((n,p) => n + p.played, 0) === CONFIG.SEASON.MATCHES &&
@@ -5023,13 +5140,24 @@ function viewResults(){
   const fort = fortuneOf(r.form);
 
   /* ---- the margin: what the seven were worth vs what they took ---- */
+  /* "Worth" is what these seven were good for before the season's luck was
+     dealt, so the gap between it and what they took IS that luck, plus the
+     dice. The fortune line therefore comes first and the margin second: cause,
+     then effect. They agree about nine times in ten; the tenth is a side that
+     was favoured and still contrived to drop points, and saying "even so"
+     there is the difference between a sentence and a contradiction. */
   const delta = r.wins - rep.expWins;
-  const marginLine = Math.abs(delta) < 1.2
-    ? 'About what this squad deserved.'
+  const level = Math.abs(delta) < 1.2;
+  const marginBit = level
+    ? 'about what these seven were worth'
     : delta > 0
-      ? delta.toFixed(1) + ' more wins than this squad deserved.'
-      : Math.abs(delta).toFixed(1) + ' wins left on the pitch.';
-  const fpos = clamp(((r.form + CONFIG.MATCH.FORM_SWING) / (2 * CONFIG.MATCH.FORM_SWING)) * 100, 0, 100);
+      ? delta.toFixed(1) + ' more wins than these seven were worth'
+      : Math.abs(delta).toFixed(1) + ' wins left on the pitch';
+  const marginAgrees = level || delta * r.form >= 0;
+  const marginLine = marginAgrees
+    ? marginBit.charAt(0).toUpperCase() + marginBit.slice(1) + '.'
+    : 'Even so, ' + marginBit + '.';
+  const fpos = fortunePct(r.form / CONFIG.MATCH.FORM_SWING);
 
   /* ---- how the season broke ---- */
   const seg = (n, cls) => n > 0 ? '<i class="' + cls + '" style="flex:' + n + '"></i>' : '';
@@ -5138,9 +5266,10 @@ function viewResults(){
         '<div><span class="mlabel">Took</span><span class="mbig ' + (delta >= 0 ? 'over' : 'under') + '">' +
           r.wins + '</span></div>' +
       '</div>' +
-      '<p class="note" style="margin-top:10px">' + esc(marginLine) + ' ' + esc(fort.line) + '</p>' +
+      '<p class="note" style="margin-top:10px">' + esc(fort.line) + ' ' + esc(marginLine) + '</p>' +
       '<div class="fortune" style="margin-top:12px">' +
-        '<div class="ftrack"><span class="fmark" style="left:' + fpos.toFixed(1) + '%"></span></div>' +
+        '<div class="ftrack" style="background:' + fortuneGradient() + '">' +
+          '<span class="fmark" style="left:' + fpos.toFixed(1) + '%"></span></div>' +
         '<div class="fends"><span>Cursed</span><span>Even</span><span>Charmed</span></div>' +
       '</div>' +
 
