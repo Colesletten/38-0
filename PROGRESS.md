@@ -9,10 +9,10 @@ in [`SPEC.md`](SPEC.md); how to play and how it works is in
 All six milestones from the original brief are done, plus a second round of
 changes from playtest feedback.
 
-**88/88 self-checks green.** Verified in Chromium at 360×640, 390×844 and
-1440×900, with `prefers-reduced-motion`, and opened directly from `file://`.
-A Playwright network audit confirms the page still makes exactly **one** HTTP
-request: the document itself.
+**108/108 self-checks green.** Verified in Chromium at 320×568, 360×640,
+390×844 and 1440×900, with `prefers-reduced-motion`, and
+opened directly from `file://`. A Playwright network audit confirms the page
+still makes exactly **one** HTTP request: the document itself.
 
 ---
 
@@ -64,10 +64,10 @@ changes fixed it:
 
 | how you draft | p10 | median | p90 | 38-0 | unbeaten |
 |---|---:|---:|---:|---:|---:|
-| random players, random slots | 0 | 2 | 7 | 0% | 0% |
-| random players, sensible slots | 2 | 7 | 19 | 0% | 0% |
-| best available, best slot | 23 | **30** | 35 | **0.67%** | 3.6% |
-| pool's theoretical best seven | — | 37 | — | — | — |
+| random players, random slots | 0 | 1 | 5 | 0% | 0% |
+| random players, sensible slots | 1 | 7 | 18 | 0% | 0% |
+| best available, best slot | 25 | **30** | 35 | **0.51%** | 2.9% |
+| the pool's theoretical best seven | — | 37 | — | — | — |
 
 *(Figures above are the current ones. The `unbeaten` column carried the 38-0
 value for a long stretch because a scratchpad script computed it wrongly, which
@@ -522,3 +522,350 @@ seasons, one verdict for half the games played; it is now 39% with EUROPE on
 25% and MID-TABLE on 12%. The test that guards this now reads the CHAMPIONS
 line out of `VERDICTS` instead of hard-coding it, so it measures what players
 are actually told.
+
+
+### 13. A league instead of a ramp
+
+Reported from play: "almost all dropped points happen in the run-in", and "a
+lot of undefeated, never 38-0".
+
+Both were the same fault. The opponent curve was a smooth ramp from 56 to 89
+with only +/-2.6 of per-fixture wobble, so for an 85-rated squad the **first
+fixture it was even 10% likely to drop was matchday 30**, and **81% of all
+dropped points landed in the last twelve**. Twenty-nine rehearsals, then a
+nine-match season. And because all the jeopardy sat in a handful of games at
+the end, the difference between unbeaten and perfect came down to a few
+near-coin-flips rather than to squad quality.
+
+`CONFIG.CURVE` is gone. In its place `CONFIG.FIXTURES` builds a league:
+nineteen opponents across four tiers -- 3 title rivals, 5 chasers, 6 mid-table,
+5 strugglers -- each met home and away, away being three points harder, then
+shuffled from a fixed seed so every player still plays the identical season.
+A small late bias keeps the run-in meaningful without letting it own the year.
+
+The shape now, for an 85-rated squad:
+
+| | before | after |
+|---|---|---|
+| share of dropped points in the run-in | 81% | **43%** |
+| fixtures it can realistically drop | 9 | **14** |
+| first such fixture | matchday 30 | **matchday 3** |
+
+And the compounding does what it was meant to. Six matches against title
+rivals turn small gaps in squad quality into large gaps in the odds of winning
+all six:
+
+| squad | 38-0 before | 38-0 after |
+|---|---|---|
+| top 5% | 1 in 15 | **1 in 13** |
+| top 10% | 1 in 25 | **1 in 20** |
+| next 15% | 1 in 250 | **1 in 150** |
+| upper middle | 1 in 1,000 | 1 in 714 |
+| bottom 25% | never | never |
+
+The share of unbeaten seasons that are also perfect rose from 15.5% to 18.5%
+overall, and from 28% to 32% in the top five per cent -- which was the actual
+complaint. Overall: unbeaten 1 in 29, 38-0 1 in 156, median 30.
+
+Four tests replaced the one that asserted a steep ramp: that the season is a
+real league with every opponent met twice, that at least three of the ten
+hardest fixtures fall in the first half, that a good squad meets a real test
+before matchday 13, and that the run-in still tightens but by less than twelve
+rating points.
+
+
+### 14. The harness was not playing the game
+
+Reported from play: "it does not seem possible to get an 88 squad", against a
+tier table that said 5.8% of squads reach 88+.
+
+The player was right. `smartLineup` and `randomLineup` -- the samplers every
+balance figure in this file came from -- did not draft the way the game does.
+They picked cells with `rngPick(rnd, POOL.cells)`, uniformly across all 56,
+never calling `spinCell`. So no `REPEAT_DECAY`. And they never removed
+already-signed players from the offer, so a squad could in principle carry the
+same player twice.
+
+The effect was consistent and one-directional:
+
+| | harness said | real loop |
+|---|---|---|
+| 38-0 | 1 in 156 | **1 in 347** |
+| unbeaten | 1 in 29 | **1 in 51** |
+| squads reaching 88+ | 5.8% | **3.1%** |
+| median squad rating | 81.4 | 80.0 |
+
+About twice as generous as the game, so every tuning pass since the samplers
+were written was aimed at something nobody was playing.
+
+Both now go through `draftThroughLoop`, which runs the genuine
+`spinCell` / `offerFrom` / `assignPending` sequence and borrows the global
+`GAME` because that is what those functions read, restoring it afterwards so
+sampling has no side effects. Verified: 6.29 distinct clubs per sampled side
+against 6.3 measured in real play, zero duplicate players, zero incomplete
+lineups, `GAME` untouched.
+
+Three tests now guard it: complete and duplicate-free sides, fewer distinct
+clubs per squad than there are slots (which only the weighted spin produces),
+and the live game unchanged by sampling.
+
+**Corrected figures, 25,000 games through the real loop.** Note these use the
+harness's role-normalised picking, which is a shade sharper than picking on
+raw rating, so they sit slightly above a plain greedy player:
+
+- champion or better: 1 in 4
+- unbeaten: 1 in 34
+- 38-0: 1 in 195
+- squad rating: median 81.2, p90 86.1, p99 91.2
+- drafts reaching 84+: 22.1%, 86+: 10.5%, 88+: 4.5%
+
+| squad rating | champion+ | unbeaten | 38-0 |
+|---|---|---|---|
+| under 80 | 1 in 20 | 1 in 788 | never |
+| 80-81 | 1 in 6 | 1 in 140 | 1 in 6,146 |
+| 82-83 | 1 in 3 | 1 in 51 | 1 in 1,165 |
+| 84-85 | 1 in 2 | 1 in 19 | 1 in 321 |
+| 86-87 | 1 in 2 | 1 in 9 | 1 in 58 |
+| 88+ | 1 in 1 | 1 in 4 | 1 in 13 |
+
+The open question this leaves, which is the next thing to work on: reaching 88+
+is 4.5% of drafts and picking better barely moves it -- an optimiser that
+maximises squad rating every round reaches 88+ *less* often than plain greedy.
+The ceiling is the spins, not the player's judgement, which is the opposite of
+what the game is supposed to reward.
+
+---
+
+### 15. Making 88 mean something, and a third reel
+
+Two requests in one: *"38-0 should be about 1 in 5 for 88+ squads, and
+everything else should scale from there"*, and *"three spinners — club, era,
+position — and you choose which two to spin each round, never the same two
+twice."*
+
+#### The rescale
+
+The previous section left the game at 1 in 13 for an 88+ squad and 1 in 195
+overall, with the ladder compressed: an 86-87 squad and an 88+ squad were nearly
+the same bet. The dial that fixes that is `MATCH.STEEP`, which decides how much
+of a match a rating advantage is worth. It went **0.16 -> 0.48**, and the four
+fixture tiers moved with it (rivals 81 -> 80, mid-table 61 -> 62, strugglers
+52 -> 53) so the median season did not collapse while the top of the ladder
+stretched.
+
+16,000 games through the real loop:
+
+| squad rating | unbeaten | 38-0 |
+|---|---|---|
+| under 80 | 1 in 173 | never |
+| 80-81 | 1 in 19 | 1 in 440 |
+| 82-83 | 1 in 7 | 1 in 149 |
+| 84-85 | 1 in 4 | 1 in 24 |
+| 86-87 | 1 in 2 | 1 in 10 |
+| 88+ | 1 in 2 | **1 in 5** |
+
+Three consequences, each a deliberate decision rather than a side effect:
+
+- **Verdict thresholds moved.** CHAMPIONS 33 -> 34, RECORD BREAKERS 35 -> 36,
+  TITLE RACE 29 -> 30. A steeper curve raises the median season, and a verdict
+  that most seasons clear is not a verdict.
+- **The unbeaten test cap went 6% -> 15%.** This is the uncomfortable one. 12.9%
+  of seasons now finish unbeaten, which reads high. It is the direct cost of the
+  1-in-5 brief: you cannot make 88+ go 38-0 one season in five without also
+  making very good squads hard to beat. The constant carries a comment saying so
+  and saying to bring it back down if 38-0 is ever retargeted.
+- **The random-team floor went 5 wins -> 2.** A steeper curve punishes a bad
+  draft harder, which is the point.
+
+#### The third reel, built and rejected
+
+Built behind `CONFIG.DRAFT.WHEELS`: a line wheel alongside club and era, three
+pairings usable twice each, choose which two to turn and hold the third.
+Played for an evening and cut. It is recorded here because the measurements are
+the reason, and because the same idea will come back.
+
+One bug worth keeping: **3,500 of 6,000 test drafts ended with an incomplete
+lineup.** Two rules were in conflict. "Each pairing exactly twice" says which
+pairings you may still use; "you cannot hold a line you have already filled"
+says which are legal. Late in a draft the remaining budget was routinely all
+dead pairings, and the round simply refused. Letting budget win -- re-spinning
+a held wheel that had gone stale rather than refusing the round -- fixed it.
+Any future "choose which wheels to turn" mechanic will hit the same collision.
+
+The reason it did not survive contact is that it is a much easier game, and the
+numbers say why. A line wheel that only ever lands on a slot you still need
+means every offer is usable:
+
+| 25,000 drafts each | two reels | three reels |
+|---|---:|---:|
+| median squad rating | 81.3 | 85.0 |
+| reaching 88+ | 4.7% | 21.9% |
+| unbeaten | 1 in 8 | 1 in 3 |
+| 38-0 | 1 in 50 | 1 in 15 |
+
+The per-rating ladder was identical in both, because it is a property of the
+season, not the draft. If the idea returns, the lever is the line wheel's
+scarcity -- letting it land on lines you have already filled, so a held line
+can be a liability -- and not the opponents, because moving those would break
+the 1-in-5 the rescale was for.
+
+---
+
+### 16. The daily draft is not dealing you the same clubs
+
+Reported from play: the daily draft seems to hand out similar clubs every time,
+while the free draft feels more varied. Worth checking, because a daily seeded
+from a date is exactly the kind of thing that goes subtly wrong.
+
+It has not. Both modes draft from the same weighted spin; the only difference is
+where the seed comes from. Over 700 drafts each:
+
+| | daily (700 consecutive dates) | free (700 random keys) |
+|---|---:|---:|
+| distinct round-1 clubs seen | 31 of 31 | 31 of 31 |
+| round-1 chi-square vs uniform (df=30) | 139.7 | 127.2 |
+| distinct clubs per 7-round draft | 6.30 | 6.28 |
+| clubs shared with the previous draft | 1.53 | 1.54 |
+
+Statistically the same game. `hashString` already ends in an avalanche
+specifically so neighbouring dates land far apart, and the measurement confirms
+it works.
+
+Two things are true underneath the report, though, and both are real:
+
+**The reels genuinely favour big clubs, in both modes.** A club is dealt per
+*cell*, not per club, and only ten clubs field a squad in all three eras:
+
+| cells | clubs | share of any one spin |
+|---|---|---|
+| 3 | Arsenal, Man Utd, Chelsea, Liverpool, Man City, Tottenham, Newcastle, Everton, Aston Villa, West Ham | 54% between them |
+| 2 | Leicester, Fulham, Sunderland, Southampton, Crystal Palace | 18% |
+| 1 | the other 16 | 29% |
+
+So 3.7 of your seven clubs come from those ten, every draft, in either mode.
+That is the "same clubs again" feeling, and it is a property of who was in the
+division for twenty-five years rather than a bug. Flattening it means weighting
+the spin per club instead of per cell, which makes drafts harder on average,
+because the one-era clubs are the weak pools. Left alone deliberately; noted
+here as the lever if it ever needs pulling.
+
+**One daily a day is one hand a day.** Replaying the daily repeats it, by
+design. The variety in the free draft is partly just playing more of them.
+
+---
+
+### 17. The margin panel was reporting the luck twice
+
+Reported from play: "I overperformed my projected wins, but the graph shows me
+in the red and the text says I was even."
+
+Three separate things were wrong, and they compounded.
+
+**The bar and the words were drawn from different numbers.** `fortuneOf` calls
+anything inside |f| < 0.22 an "even break" — the middle 44% of the range. The
+CSS gradient underneath it had its neutral stretch hand-written at 46%-54%, the
+middle 8%. So a marker could sit visibly in the red while the sentence above it
+said the season was even. Measured: **14.3% of seasons**, 573 in 4,000, worst
+case a marker at 39% under the words "an even break".
+
+Both are generated from one table now (`FORTUNE_BANDS`), with the gradient
+built by `fortuneGradient()` from the same thresholds the prose uses. Measured
+again afterwards: 0 disagreements in 4,000.
+
+**"Worth" was a second readout of the luck.** `expWins` summed `pWin` from the
+season's `detail`, and those probabilities were computed at `a.rating + form` —
+the form draw was already inside them. So the number labelled "what this squad
+deserved" moved with the season's fortune: within a single rating band it
+tracked the form draw at **r = 0.972**, swinging 5.6 wins p10-p90 for squads of
+identical quality. A cursed season quietly lowered the bar it was then judged
+against, so the screen told you that you did about right, directly underneath a
+bar saying you had been cursed.
+
+The match maths is now one function, `matchOdds(rating, opp, a, i)`, called
+twice per fixture: once at the rating the season was played at, once at the
+squad's own rating with the luck taken out. `expWins` sums the second. After
+the fix the same correlation is **r = -0.002**, and the gap between Worth and
+Took behaves the way the panel always claimed it did:
+
+| fortune | mean (Took − Worth) |
+|---|---:|
+| Cursed | −1.63 |
+| Unlucky | −0.86 |
+| Even | −0.05 |
+| Favoured | +0.91 |
+| Charmed | +1.65 |
+
+**The two sentences were stacked as rival claims.** Worth is now luck-free, so
+the fortune line is the *cause* and the margin the *effect*; they are printed
+in that order. About one season in ten still has a favoured side dropping
+points anyway, which is honest dice rather than a bug, and those now read "Even
+so, 1.6 wins left on the pitch" instead of asserting two opposite things in a
+row.
+
+Three tests guard all of it: Worth equals the sum of par odds, par does not
+move with the form draw, and the generated gradient's neutral band is the band
+the words call "Even".
+
+---
+
+### 18. Making the rating the story
+
+The brief, in the player's words: an 81 should never win a league; 84-85 should
+be Europe, a title chase, an outside shot at the title, very unlikely to go
+unbeaten and with **no** chance of a perfect season; 87-88 should be winning
+leagues, going undefeated, and maybe going 38-0.
+
+The old ladder was nowhere near that. An 80-81 squad won the league one time in
+four. An 84-85 went 38-0 one time in 28.
+
+**The thing in the way was not the response curve. It was the luck.**
+`FORM_SWING` was 5, meaning a season's fortune moved the team rating by up to
+five points in either direction — *wider than the entire 84-to-88 stretch the
+game is trying to tell apart*. A lucky 84 was, arithmetically, an 89, and went
+perfect about as often as one. No amount of steepening fixes that, because
+steepening amplifies the luck exactly as much as it amplifies the draft.
+
+Four changes, in the order they matter:
+
+1. **`FORM_SWING` 5 → 2.** The draft becomes the story. This one change did
+   more than everything else combined.
+2. **The whole opponent ladder up three points** (rivals 80→83, chasing pack
+   71→75, mid-table 62→66, strugglers 53→57). An 84 now drops points to the
+   chasing pack as well as to the rivals, which is what turns a title into a
+   chase. Raising only the rivals did not work: a side that beats the other 32
+   fixtures still reaches 34 wins.
+3. **`STEEP` 0.48 → 0.55.** A modest nudge; with the luck reined in it no
+   longer has to do the whole job.
+4. **A new knob, `ELITE_DRAW_FROM` / `ELITE_DRAW_CUT` (87 / 0.32).** The top of
+   the ladder was blocked by *draws*, not defeats — an 88-rated side already
+   lost almost nothing, it drew four. Above 87 each rating point now shaves 32%
+   off the draw chance. Cutting draws globally instead was tried and rejected:
+   it lifted 38-0 at the top to 20% but also took an 82-83 squad from a 4%
+   title rate to 27%, which is the opposite of the brief.
+
+30,000 seasons through the real loop:
+
+| rating | champion+ | unbeaten | 38-0 | median wins |
+|---|---|---|---|---:|
+| 80 | 1 in 836 | never | never | 27 |
+| 81 | 1 in 288 | never | never | 28 |
+| 82 | 1 in 52 | 1 in 366 | never | 29 |
+| 83 | 1 in 18 | 1 in 167 | never | 30 |
+| 84 | 1 in 7 | 1 in 57 | never | 31 |
+| 85 | 1 in 4 | 1 in 29 | 1 in 825 | 32 |
+| 86 | 1 in 2 | 1 in 12 | 1 in 255 | 33 |
+| 87 | 1 in 2 | 1 in 8 | 1 in 51 | 34 |
+| 88 | 1 in 1 | 1 in 4 | 1 in 19 | 35 |
+| 89 | 1 in 1 | 1 in 3 | 1 in 7 | 36 |
+
+One rating point, one win, the whole way up. In the 84-85 band, 2 perfect
+seasons in 3,580.
+
+**A test was retired rather than loosened.** "A median random-but-sensible team
+is a relegation scrap" had had its floor lowered three times chasing the same
+moving number (8 → 5 → 2), which is how a check stops guarding anything. A
+random seven rates about 57, which is what this league's strugglers rate, so it
+*should* win almost nothing; pinning a number on it only measured how hard the
+season happened to be that week. The floor is gone and the assertions are about
+shape instead — a careless side is a relegation side, drafting well is worth a
+landslide, and `FORM_SWING` stays small enough that rating drives the result.

@@ -34,8 +34,10 @@ get wrong:
   day gets the same seven spins. Replaying it deliberately repeats it; once
   you've played it, the card says so and shows your record.
 
-A single draft never visits the same club twice, so seven spins are a tour of the
-league rather than two Chelsea cells and two Arsenal cells.
+A club that has already come up is weighted down rather than banned, so the
+reels mostly tour the league but will hand you the same badge twice — which is
+the only way a chemistry block can exist at all.
+
 - **Copy result** — puts a shareable emoji season grid on your clipboard.
 
 The results screen is a report, not a scoreboard: what the seven were *worth*
@@ -75,8 +77,8 @@ length, so extending to a full XI means adding entries there and nothing else.
 Your seven players roll up into four phase ratings — **attack, midfield,
 defence, goalkeeping** — scaled by how well each one suits the slot you put them
 in. A chemistry multiplier rewards players who actually shared a dressing room
-and punishes a lopsided squad. That produces one team rating, which meets a
-rising opponent curve whose last twelve matches are a genuine title run-in.
+and punishes a lopsided squad. That produces one team rating, which meets a real
+fixture list: nineteen opponents, home and away, in a fixed shuffled order.
 
 Four things stop a good squad coasting:
 
@@ -87,28 +89,61 @@ Four things stop a good squad coasting:
   always happened.
 - **Season fortune.** Drawn once from the lineup's own stream and added to the
   team rating for all 38 matches: the year the ball ran for you, or the year it
-  did not. It is what makes two equally good squads finish differently, and it
-  is reported on the results screen rather than hidden in the engine.
+  did not. It is worth **two** rating points either way, deliberately small. It
+  used to be five, which was wider than the whole 84-to-88 stretch the game is
+  trying to tell apart — a lucky 84 simply *was* an 89 and went perfect about
+  as often. Fortune is the footnote now; the draft is the story.
 - **Category gates.** A phase below its threshold bleeds points from matchday 20
   and hard-caps how many wins the season can produce, surrendered from the
   hardest fixtures backwards. You cannot win the league with a hole in you.
-- **A shallow response curve.** Rating matters, but not so much that a good
-  squad becomes a formality.
+- **A steep response curve.** `MATCH.STEEP` decides how much a rating advantage
+  is worth in a single match. Combined with the small fortune swing, one rating
+  point is worth almost exactly one win across the whole range.
+- **Draws, and who escapes them.** Draws — not defeats — are what stop a very
+  good side going perfect. An 88-rated squad barely loses; it draws four. So
+  above `ELITE_DRAW_FROM` each rating point shaves `ELITE_DRAW_CUT` off the
+  draw chance, and nothing below that line is touched. Cutting draws for
+  everyone instead would hand every decent side the league, which is the exact
+  thing this is here to prevent.
 
-Tuned so that:
+Tuned so that the rating you draft to, not the season you roll, decides what
+happens. Over 30,000 seasons played through the real game loop:
 
-| how you draft | p10 | median | p90 | 38-0 | unbeaten |
-|---|---:|---:|---:|---:|---:|
-| random players, random slots | 0 | 2 | 7 | 0% | 0% |
-| random players, sensible slots | 2 | 7 | 19 | 0% | 0% |
-| best available, best slot | 23 | **30** | 35 | **0.67%** | 3.6% |
-| the pool's theoretical best seven | — | 37 | — | — | — |
+| squad rating | champion or better | unbeaten | 38-0 | median wins |
+|---|---|---|---|---:|
+| 79 | never | never | never | 26 |
+| 80 | 1 in 836 | never | never | 27 |
+| 81 | 1 in 288 | never | never | 28 |
+| 82 | 1 in 52 | 1 in 366 | never | 29 |
+| 83 | 1 in 18 | 1 in 167 | never | 30 |
+| 84 | 1 in 7 | 1 in 57 | never | 31 |
+| 85 | 1 in 4 | 1 in 29 | 1 in 825 | 32 |
+| 86 | 1 in 2 | 1 in 12 | 1 in 255 | 33 |
+| 87 | 1 in 2 | 1 in 8 | 1 in 51 | 34 |
+| 88 | 1 in 1 | 1 in 4 | 1 in 19 | 35 |
+| 89 | 1 in 1 | 1 in 3 | 1 in 7 | 36 |
+| 90 | 1 in 1 | 1 in 2 | 1 in 4 | 37 |
 
-A well-drafted side is usually denied by draws rather than defeats. Squad rating
-and final record correlate at 0.53, so the draft is most of the result and the
-season's fortune is the rest — deliberately in that order. Every tuning
+One rating point is one win, all the way up. An 81 never wins the league. An 84
+is a title chase with an outside shot and no realistic path to a perfect season.
+An 88 wins it, goes unbeaten one year in four, and goes 38-0 one in nineteen.
+Overall: median 28 wins, unbeaten 2.5%, 38-0 0.86%. A randomly assembled seven
+rates about 57 — what this league's strugglers rate — and takes a median of one
+win.
+
+A well-drafted side is usually denied by draws rather than defeats. Every tuning
 constant lives in one labelled `CONFIG` block at the top of the script. Move a
 number, reload, re-run the histogram.
+
+## The margin
+
+The results screen states what the seven were **Worth** against what they
+**Took**. Worth is computed at the squad's own rating with the season's luck
+taken back out — the same `matchOdds` the season itself ran, at a different
+rating — so the gap between the two figures *is* the luck, plus the dice. The
+fortune bar underneath reports that luck directly, which is why the two now
+read as one sentence: cause, then effect. They agree about nine times in ten,
+and the tenth says "even so".
 
 ## Data honesty
 
@@ -123,9 +158,9 @@ confident about was left out rather than guessed, and pools wanting a human audi
 carry `// REVIEW:` comments — all of them are listed in
 [`PROGRESS.md`](PROGRESS.md).
 
-11 clubs, 32 club/era cells, **1,651 players** — a median of 51 per club/era,
-and the whole squad is offered every spin, filtered by line. Leicester has no
-2000s pool because they were not in the division for most of it.
+31 clubs, 56 club/era cells, **1,120 players** — exactly 20 per club and era, and
+the whole squad is offered every spin, filtered by line. Leicester has no 2000s
+pool because they were not in the division for most of it.
 
 ## Design
 
@@ -184,6 +219,24 @@ the 2010s, Brentford and Brighton the 2020s.
 The clubs are deliberately not all giants. Charlton and Birmingham field a best
 seven around 75 where Liverpool field 90, so the reels can deal a genuinely
 poor hand -- which is what gives the two skips something to protect you from.
+
+## The fixture list
+
+The season is a league, not a difficulty ramp. Nineteen opponents across four
+tiers — a few title rivals, a chasing pack, a mid-table and some strugglers —
+each met home and away, away three points harder, shuffled from a fixed seed so
+everyone plays the same season in the same order.
+
+It used to be a smooth climb, which meant an 85-rated side was not even 10%
+likely to drop a match until matchday 30 and four fifths of all dropped points
+came in the last twelve. Now the hard games fall where they fall: the first
+real test lands around matchday 3, and the run-in accounts for 43% of dropped
+points rather than 81%.
+
+The six fixtures against title rivals are also what separates an unbeaten
+season from a perfect one. Winning all six compounds, so a small edge in squad
+quality becomes a large edge in the odds — which is the difference between
+being good and being untouchable.
 
 ## Squad traits
 
